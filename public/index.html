@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Newsletter Maker</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- Font Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- Navigation Bar -->
+        <nav class="main-nav">
+            <div class="nav-container">
+                <div class="nav-steps">
+                    <div class="step active" data-step="1">Article Search</div>
+                    <div class="step" data-step="2">Article View</div>
+                    <div class="step" data-step="3">Image View</div>
+                    <div class="step" data-step="4">Inspirational Images</div>
+                    <div class="step" data-step="5">Text</div>
+                    <div class="step" data-step="6">Confirmation</div>
+                </div>
+                <div class="nav-actions">
+                    <div class="model-select-global">
+                        <select id="ai-model" class="form-control" style="width: auto; padding: 2px 5px; font-size: 0.85rem;">
+                            <option value="claude-opus-4-6" selected>Claude Opus 4.6 (Best)</option>
+                            <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (Fast)</option>
+                            <option value="claude-haiku-4-5">Claude Haiku 4.5 (Fastest)</option>
+                            <option value="gemini-flash-3-0">Gemini Flash 3.0</option>
+                            <option value="gemini-flash-3-1-pro">Gemini Flash 3.1 Pro</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="content-area">
+            <!-- Step 1: Ingestion -->
+            <section id="step-1" class="view active">
+                <div class="container">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>Setup Newsletter</h2>
+                        </div>
+                        <div class="card-body">
+                            <!-- Newsletter Name -->
+                            <div class="form-group" style="margin-bottom: 20px;">
+                                <label style="font-size: 0.85rem; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">Newsletter Name</label>
+                                <input type="text" id="newsletter-name" placeholder="e.g. Week 1 - Tech Update" value="Week 1" style="max-width: 400px;">
+                            </div>
+
+                            <hr class="divider">
+
+                            <!-- AI Prompt Section -->
+                            <div class="form-group">
+                                <label class="section-label" style="margin-bottom: 5px;">Find Articles with AI</label>
+                                <textarea id="ai-prompt" rows="4" placeholder="Enter instructions for AI to generate articles..."></textarea>
+                                
+                                <div id="recent-prompts" class="recent-prompts" style="margin-top: 5px; margin-bottom: 10px; font-size: 0.85rem; color: var(--text-muted);">
+                                    <!-- Recent prompts will be injected here -->
+                                </div>
+
+                                <div class="controls-row" style="justify-content: flex-end; gap: 10px; align-items: center;">
+                                    <span id="search-status" class="text-success" style="font-weight: 500; display: none;"></span>
+                                    <button id="btn-search-articles" class="btn btn-primary">Find Articles</button>
+                                    <button id="btn-clear-workspace" class="btn btn-secondary" onclick="clearWorkspace()" style="background: #6c757d;">Clear All</button>
+                                    <button id="btn-next-step-2" class="btn btn-outline" style="display: none;">Next: Review Articles</button>
+                                </div>
+                            </div>
+
+                            <hr class="divider">
+
+                            <!-- File Upload Section -->
+                            <div class="form-group">
+                                <label class="section-label">Or Upload Excel Sheet</label>
+                                <div class="controls-row">
+                                    <div class="file-input-wrapper">
+                                        <label for="excel-upload" class="btn btn-secondary">Choose File</label>
+                                        <input type="file" id="excel-upload" accept=".xlsx" hidden>
+                                        <span id="file-name" class="file-name">No file chosen</span>
+                                    </div>
+                                    <button id="btn-upload-file" class="btn btn-primary">Upload & Load</button>
+                                </div>
+                                <div style="margin-top: 10px;">
+                                    <button id="btn-load-template" class="btn btn-outline btn-sm">Download Template</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Step 2: Article View -->
+            <section id="step-2" class="view">
+                <div class="card" style="max-width: 1400px;">
+                    <div class="card-header">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h2>Review & Select Articles</h2>
+                            <div id="article-stats" class="article-stats">
+                                <span class="stat-item">Total: 0</span>
+                            </div>
+                        </div>
+                        <p class="text-muted">Review generated articles, assign categories, and select for newsletter.</p>
+                    </div>
+
+                    <!-- Save / Load Controls -->
+                    <div style="display: flex; gap: 15px; align-items: center; padding: 15px 20px; background: #f0f4f8; border-bottom: 1px solid #ddd; flex-wrap: wrap;">
+                        <button class="btn btn-primary btn-sm" onclick="saveSession()">Save</button>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label style="font-size: 0.85rem; font-weight: 600; color: #555; white-space: nowrap;">Load Saved:</label>
+                            <select id="saved-sessions-dropdown" style="padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.85rem; min-width: 200px;">
+                                <option value="">-- Select --</option>
+                            </select>
+                            <button class="btn btn-secondary btn-sm" onclick="loadSession()">Load</button>
+                            <button class="btn btn-sm" style="color: #d32f2f; border: 1px solid #d32f2f; background: transparent; padding: 5px 10px; font-size: 0.8rem;" onclick="deleteSession()">Delete</button>
+                        </div>
+                    </div>
+
+                    <!-- AI Query Box with Toggle -->
+                    <div style="padding: 15px 20px; border-bottom: 1px solid #eee;">
+                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+                            <label style="font-size: 0.95rem; font-weight: 600; color: #333;">AI Query</label>
+                            <div style="display: flex; gap: 5px; background: #eee; border-radius: 6px; padding: 2px;">
+                                <button id="toggle-search-more" class="btn btn-sm toggle-btn active" onclick="setQueryMode('search')" style="padding: 4px 14px; font-size: 0.8rem;">Find More Articles</button>
+                                <button id="toggle-modify" class="btn btn-sm toggle-btn" onclick="setQueryMode('modify')" style="padding: 4px 14px; font-size: 0.8rem;">Modify Existing</button>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <textarea id="step2-query" rows="2" placeholder="Search for more articles to add..." style="flex: 1; padding: 10px; font-size: 0.95rem;"></textarea>
+                            <button id="btn-step2-query" class="btn btn-primary" onclick="executeStep2Query()">Find Articles</button>
+                        </div>
+                        <div id="step2-query-status" style="font-size: 0.85rem; color: #4caf50; font-weight: 500; margin-top: 5px; display: none;"></div>
+                    </div>
+
+                    <!-- Articles Table Header -->
+                <div class="articles-table-header">
+                    <div class="col-selected">
+                        Select<br>
+                        <span style="font-size: 0.7rem; cursor: pointer; text-decoration: underline;" onclick="toggleAllArticles(true)">All</span> / 
+                        <span style="font-size: 0.7rem; cursor: pointer; text-decoration: underline;" onclick="toggleAllArticles(false)">None</span>
+                    </div>
+                    <div class="col-article">Article</div>
+                    <div class="col-date">Date</div>
+                    <div class="col-paywall">Paywall</div>
+                    <div class="col-status">Status</div>
+                    <div class="col-cat header-sort" onclick="sortArticles('MED')">MED</div>
+                    <div class="col-cat header-sort" onclick="sortArticles('THC')">THC</div>
+                    <div class="col-cat header-sort" onclick="sortArticles('CBD')">CBD</div>
+                    <div class="col-cat header-sort" onclick="sortArticles('INV')">INV</div>
+                    <div class="col-keyword">Notes</div>
+                    <div class="col-actions">Actions</div>
+                </div>
+
+                    <div id="articles-list" class="articles-list">
+                        <!-- Rows will be injected here -->
+                    </div>
+
+                    <div class="controls-row" style="margin-top: 30px; justify-content: space-between;">
+                        <button id="btn-back-step-1" class="btn btn-secondary">Back</button>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-success btn-sm" onclick="exportArticlesXls()">Export XLS</button>
+                            <button id="btn-next-step-3" class="btn btn-primary">Next: Image View</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <section id="step-3" class="view">
+                <div class="card" style="max-width: 1400px;">
+                    <div class="card-header">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h2>Select Images</h2>
+                            <div id="image-view-stats" class="article-stats">
+                            </div>
+                        </div>
+                        <p class="text-muted">Choose an image for each selected article.</p>
+                    </div>
+
+                    <!-- Save bar matching article page -->
+                    <div style="display: flex; gap: 15px; align-items: center; padding: 12px 20px; background: #f0f4f8; border-bottom: 1px solid #ddd;">
+                        <button class="btn btn-primary btn-sm" onclick="saveSession()">Save</button>
+                    </div>
+                    
+                    <div id="images-list" class="images-list" style="padding: 0;">
+                    </div>
+
+                    <div class="controls-row" style="margin-top: 30px; justify-content: space-between; padding: 0 15px 15px;">
+                        <button id="btn-back-step-2" class="btn btn-secondary">Back</button>
+                        <button id="btn-next-step-4" class="btn btn-primary">Next: Inspirational Images</button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="step-4" class="view">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Inspirational Images</h2>
+                        <p class="text-muted">Select inspirational images for the newsletter headers.</p>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>Add Custom Image by URL</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" id="insp-url-input" placeholder="https://example.com/image.jpg" style="flex: 1;" class="form-control">
+                                <button class="btn btn-primary" onclick="addInspirationalUrl()">Add URL</button>
+                            </div>
+                        </div>
+
+                        <hr class="divider">
+
+                        <h3>Select from Gallery</h3>
+                        <div id="insp-gallery-grid" class="image-grid-compact" style="margin-bottom: 20px;">
+                            <!-- Pre-loaded images injected here -->
+                        </div>
+
+                        <hr class="divider">
+
+                        <h3>Selected Images</h3>
+                        <div id="selected-insp-grid" class="image-grid-compact" style="margin-bottom: 20px;">
+                            <!-- Selected -->
+                        </div>
+                    </div>
+                    <div class="controls-row" style="margin-top: 30px; justify-content: space-between;">
+                        <button id="btn-back-step-3" class="btn btn-secondary">Back</button>
+                        <button id="btn-next-step-5" class="btn btn-primary">Next: Text Editor</button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="step-5" class="view">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Text Editor</h2>
+                        <p class="text-muted">Edit the newsletter content before finalizing.</p>
+                    </div>
+                    <div class="card-body">
+                        <div class="tabs-container" style="margin-bottom: 20px; border-bottom: 1px solid #ddd;">
+                            <button class="tab-btn active" onclick="switchEditorTab('MED')">MED</button>
+                            <button class="tab-btn" onclick="switchEditorTab('THC')">THC</button>
+                            <button class="tab-btn" onclick="switchEditorTab('CBD')">CBD</button>
+                            <button class="tab-btn" onclick="switchEditorTab('INV')">INV</button>
+                        </div>
+
+                        <div id="editor-content">
+                            <!-- Dynamic Content Injected Here -->
+                        </div>
+                    </div>
+                    <div class="controls-row" style="margin-top: 30px; justify-content: space-between;">
+                        <button id="btn-back-step-4" class="btn btn-secondary">Back</button>
+                        <button id="btn-next-step-6" class="btn btn-primary">Next: Confirmation</button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="step-6" class="view">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Confirmation</h2>
+                        <p class="text-muted">Review and publish your newsletter.</p>
+                    </div>
+                    <div class="card-body">
+                        <div id="confirmation-summary" style="margin-bottom: 30px;">
+                            <!-- Summary stats -->
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Export Actions</label>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn btn-success" onclick="exportNewsletter()">Download JSON</button>
+                                <button class="btn btn-outline" onclick="window.print()">Print / PDF</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="controls-row" style="margin-top: 30px; justify-content: space-between;">
+                        <button id="btn-back-step-5" class="btn btn-secondary">Back</button>
+                        <button class="btn btn-primary" onclick="alert('Publishing functionality to be implemented!')">Publish Newsletter</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>

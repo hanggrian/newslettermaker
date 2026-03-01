@@ -1,0 +1,57 @@
+The application logic centers on a 4-step workflow to generate a weekly newsletter:
+
+### 1. Article Ingestion & Sourcing
+- **Import**: Users upload an Excel sheet (.xlsx) containing article links, titles, and metadata. The system parses this file, mapping various column headers (e.g., "Topic" -> "title") to a standardized internal format.
+- **AI Generation**: Alternatively, users can generate articles using an AI prompt (Anthropic Opus 4.6 or another). The system enforces a strict JSON schema for the AI response to ensure valid article objects are created.
+- **Data Structure**: Articles are stored with a status (N, Y, YM, M, COOL FINDS) and categorization (MED, THC, CBD, INV).
+- **Layout**: The number by the article dictates its order. In a two-column layout, even numbers appear on the right.
+- **Prompt Box Usage**: 
+  - On initial setup: Can be used to find new articles or clear/restart search.
+  - On Article View: Used to modify existing article text (e.g., shorten descriptions) via AI, NOT to find new articles.
+
+### 2. Image Selection & Management
+- **Search Logic**: Users search for icons/images for each article via a keyword search button.
+  - **API**: Calls `freepik.js` (or similar provider) to retrieve 9 images (highest probability first).
+  - **Pagination**: 
+    - Right arrow loads the next 8 images.
+    - Back arrow reverts to the previous set.
+  - **Selection**: Clicking a small square image promotes it to the "big image" (selected state). No popups; inline selection.
+- **Smart Querying**: The backend intelligently adjusts search terms based on context:
+  - **Uniqueness**: No two images can be the same; synonyms are encouraged.
+  - **People**: If the icon represents a person, it prioritizes "kawaii" style images. If the API doesn't support specific packs, "kawaii" is added as a keyword.
+- **Filtering**: Prioritizes "flat" and "fill" styles; penalizes "outline" or "black & white".
+- **State Isolation**: Searching or editing one article MUST NOT reset or block the rest of the application. Actions are asynchronous and scoped to the specific article.
+- **Inspirational Images**: Allows picking one image or clicking "Next" to view more. Titles are generated via a "Generate" button. "Position" refers to the article number (top 4 only).
+
+### 3. Content & Templating
+- **Text Limits**: Article titles/descriptions are limited to 2 lines of ~55 characters. Visual feedback (extending to 3rd/4th line) alerts the user to shorten it manually or via AI.
+- **Customization**: Users provide Customized Newsletter text. The same valediction is used on all newsletters.
+- **Templates**: Users can upload custom HTML templates for different sections (Master, MED, THC, CBD, INV).
+- **Preview**: The system generates HTML previews by injecting article data and images into these templates.
+- **Loading State**: A loading screen must appear during any system processing (searching, saving, uploading).
+
+### 4. Publishing & Sync
+- **Two-Stage Publishing**:
+  1. **Image Publish (on Images Page)**: Uploads selected images to the FTP server (e.g., `2023-10-27/images/`).
+     - **Post-Upload**: The local database updates with the public URLs of the uploaded images, replacing local preview paths on the "big square".
+  2. **Newsletter Publish (on Confirmation Page)**: Uploads the final HTML newsletters to the FTP server.
+- **Manifest Generation**: A manifest file (spreadsheet of all articles/images) is created and stored in the **database** (not the file server).
+- **Cool Finds Limit**: The system automatically enforces a limit of 2 "Cool Find" articles per category during the export process.
+
+### Core Tech Stack
+- **Backend**: Express.js with a file-based JSON database (supports Supabase switch).
+- **Frontend**: Vanilla JS with view-based rendering (static HTML + hydration).
+- **Services**: xlsx for sheets, basic-ftp for deployment, and openai / anthropic for AI.
+
+### Development Process & Permissions
+- **Modular Development**: Address site components one by one.
+- **Testing Cycle**: 
+  1.  Developer implements component.
+  2.  Developer tests component.
+  3.  User tests component.
+  4.  Proceed only after verification.
+- **Design/Functionality Constraints**: Do not change design or functionality without explicit permission.
+- **AI Models**: 
+  - Default: Opus 4.6 Standard.
+  - Dropdown: Include only models with active API permissions (from .env).
+  - Prohibition: Do not add LLMs without existing permission.
