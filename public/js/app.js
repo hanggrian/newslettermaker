@@ -11,12 +11,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     let currentEditorTab = 'MED';
 
-    // Load State from LocalStorage
+    // Load State: first from LocalStorage (instant), then from Supabase if configured (overwrites)
     try {
         const saved = localStorage.getItem('newsletter_articles');
         if (saved) {
             const data = JSON.parse(saved);
-            // Backward compatibility: if array, it's just articles
             if (Array.isArray(data)) {
                 articles = data;
             } else {
@@ -35,7 +34,37 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Failed to load state', e);
     }
 
-    // Save State
+    // Load from Supabase (DB) — overwrites if server has data
+    (async function loadFromDb() {
+        try {
+            const [wrRes, sessRes] = await Promise.all([
+                fetch('/api/state?key=workspace'),
+                fetch('/api/state?key=sessions')
+            ]);
+            if (wrRes.ok) {
+                const { value } = await wrRes.json();
+                if (value && value.articles) {
+                    articles = value.articles || [];
+                    archivedArticles = value.archivedArticles || [];
+                    inspirationalImages = value.inspirationalImages || [];
+                    newsletterContent = value.newsletterContent || newsletterContent;
+                    localStorage.setItem('newsletter_articles', JSON.stringify({ articles, archivedArticles, inspirationalImages, newsletterContent }));
+                    if (typeof renderArticles === 'function') renderArticles();
+                }
+            }
+            if (sessRes.ok) {
+                const { value } = await sessRes.json();
+                if (value && typeof value === 'object') {
+                    localStorage.setItem('newsletter_saved_sessions', JSON.stringify(value));
+                    if (typeof populateSavedDropdown === 'function') populateSavedDropdown();
+                }
+            }
+        } catch (e) {
+            // DB not configured or network error — keep localStorage data
+        }
+    })();
+
+    let workspaceSyncTimeout = null;
     function saveState() {
         const state = {
             articles,
@@ -44,6 +73,15 @@ document.addEventListener('DOMContentLoaded', () => {
             newsletterContent
         };
         localStorage.setItem('newsletter_articles', JSON.stringify(state));
+        // Debounced sync to Supabase
+        if (workspaceSyncTimeout) clearTimeout(workspaceSyncTimeout);
+        workspaceSyncTimeout = setTimeout(() => {
+            fetch('/api/state', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key: 'workspace', value: state })
+            }).catch(() => {});
+        }, 800);
     }
 
     // Clear State
@@ -728,6 +766,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const btnLoadTemplate = document.getElementById('btn-load-template');
+    if (btnLoadTemplate) {
+        btnLoadTemplate.addEventListener('click', () => {
+            const headers = ['Title', 'URL', 'Description', 'Date', 'Status', 'Paywall', 'MED', 'THC', 'CBD', 'INV', 'Notes', 'Image URL'];
+            const ws = XLSX.utils.aoa_to_sheet([headers]);
+            ws['!cols'] = headers.map(() => ({ wch: 18 }));
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Articles');
+            XLSX.writeFile(wb, 'newsletter-articles-template.xlsx');
+        });
+    }
+
     // Render Articles Function (Table View)
     function renderArticles() {
         const list = document.getElementById('articles-list');
@@ -985,6 +1035,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function saveSavedSessions(sessions) {
         localStorage.setItem('newsletter_saved_sessions', JSON.stringify(sessions));
+        fetch('/api/state', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: 'sessions', value: sessions })
+        }).catch(() => {});
     }
 
     let currentSessionName = '';
@@ -1099,6 +1154,45 @@ document.addEventListener('DOMContentLoaded', () => {
             dropdown.appendChild(opt);
         });
     }
+
+    window.refreshStateFromServer = async function () {
+        try {
+            const [wrRes, sessRes] = await Promise.all([
+                fetch('/api/state?key=workspace'),
+                fetch('/api/state?key=sessions')
+            ]);
+            let msg = '';
+            if (wrRes.ok) {
+                const { value } = await wrRes.json();
+                if (value && value.articles) {
+                    articles.length = 0;
+                    articles.push(...(value.articles || []));
+                    archivedArticles = value.archivedArticles || [];
+                    inspirationalImages = value.inspirationalImages || [];
+                    newsletterContent = value.newsletterContent || newsletterContent;
+                    localStorage.setItem('newsletter_articles', JSON.stringify({ articles, archivedArticles, inspirationalImages, newsletterContent }));
+                    if (typeof renderArticles === 'function') renderArticles();
+                    msg = (value.articles || []).length + ' articles in workspace. ';
+                }
+            } else if (wrRes.status === 503) {
+                msg = 'Server database not configured. ';
+            }
+            if (sessRes.ok) {
+                const { value } = await sessRes.json();
+                if (value && typeof value === 'object') {
+                    localStorage.setItem('newsletter_saved_sessions', JSON.stringify(value));
+                    if (typeof populateSavedDropdown === 'function') populateSavedDropdown();
+                    const n = Object.keys(value).length;
+                    msg += n + ' saved session(s) loaded (e.g. Week 1).';
+                }
+            } else if (sessRes.status === 503) {
+                msg = (msg || '') + 'Sessions: server database not configured.';
+            }
+            alert(msg || 'No data from server.');
+        } catch (e) {
+            alert('Could not reach server: ' + (e.message || 'network error'));
+        }
+    };
 
     // --- QUERY MODE TOGGLE (Search More / Modify Existing) ---
 
@@ -1391,11 +1485,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (data.success) {
                     console.log("Upload Results:", data.articles);
-                    articles = data.articles; // Store in state
-                    renderArticles(); // Render to grid
-                    switchStep(2); // Move to next view
+                    articles = data.articles || [];
+                    document.getElementById('newsletter-name').value = data.newsletterName || 'Week 1';
+                    saveState();
+                    renderArticles();
+                    switchStep(2);
+                    // Persist to Supabase as Week 1
+                    const sessions = getSavedSessions();
+                    const week1Data = {
+                        articles: JSON.parse(JSON.stringify(articles)),
+                        archivedArticles: [],
+                        inspirationalImages: [],
+                        newsletterContent: newsletterContent,
+                        savedAt: new Date().toISOString()
+                    };
+                    sessions['Week 1'] = week1Data;
+                    saveSavedSessions(sessions);
+                    alert(`Loaded ${articles.length} articles and saved as "Week 1" in the database.`);
                 } else {
-                    alert("Error: " + data.error);
+                    alert(data.error || "Upload failed.");
                 }
             } catch (err) {
                 console.error(err);

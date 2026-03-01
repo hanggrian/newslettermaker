@@ -17,21 +17,49 @@ const anthropic = new Anthropic({
 // Assumes GEMINI_API_KEY or GOOGLE_API_KEY is in env
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
 
-// Helper to clean article data
-const cleanArticleData = (article, index) => {
+// Normalize Excel row: accept many column name variants
+const getCell = (row, ...keys) => {
+    for (const k of keys) {
+        const v = row[k];
+        if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+    }
+    return '';
+};
+
+// Helper to clean article data from Excel (flexible column names)
+const cleanArticleData = (row, index) => {
+    const title = getCell(row, 'Title', 'title', 'Article', 'article') || 'Untitled';
+    const url = getCell(row, 'URL', 'url', 'Link', 'link');
+    const description = getCell(row, 'Description', 'description', 'Summary', 'summary');
+    const date = getCell(row, 'Date', 'date');
+    const notes = getCell(row, 'Notes', 'notes');
+    const paywallVal = row.Paywall ?? row.paywall ?? '';
+    const paywall = paywallVal === true || String(paywallVal).toLowerCase() === 'yes' || String(paywallVal).toLowerCase() === 'y';
+    const status = getCell(row, 'Status', 'status') || 'Y';
+    const imageUrl = getCell(row, 'Image URL', 'Image URL', 'image', 'Image');
+
+    const ranks = {};
+    ['MED', 'THC', 'CBD', 'INV'].forEach(cat => {
+        const v = row[cat];
+        if (v !== undefined && v !== null && String(v).trim() !== '') ranks[cat] = String(v).trim();
+    });
+    const categories = Object.keys(ranks).length ? Object.keys(ranks) : (row.Category || row.category ? [row.Category || row.category] : []);
+
     return {
         id: index + 1,
-        title: article.Title || article.title || 'Untitled',
-        url: article.URL || article.url || '',
-        description: article.Description || article.description || '',
-        date: article.date || article.Date || '',
-        // Handle multiple categories or fallback to single
-        categories: article.categories || (article.Category || article.category ? [article.Category || article.category] : []),
-        ranks: article.ranks || {}, // Initialize ranks for Y/YM
-        notes: article.notes || article.Notes || '',
-        paywall: article.paywall === true || article.Paywall === true || false,
-        image: null, // To be filled in Step 2/3
-        isValid: true // Default to true, will be updated by verification
+        title,
+        url,
+        description,
+        date,
+        categories,
+        ranks,
+        notes,
+        paywall,
+        status,
+        image: imageUrl || null,
+        imageSearchQuery: '',
+        isValid: true,
+        selected: true
     };
 };
 
@@ -217,20 +245,30 @@ router.post('/upload', upload.single('file'), async (req, res) => {
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
-        const newsletterName = req.body.newsletterName || 'Untitled Newsletter';
-        
-        // Parse Excel
-        const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const rawData = xlsx.utils.sheet_to_json(sheet);
+        const newsletterName = req.body.newsletterName || 'Week 1';
 
-        // Transform data
-        const articles = rawData.map((row, index) => cleanArticleData(row, index));
+        const workbook = xlsx.read(req.file.buffer, { type: 'buffer', cellDates: true });
+        const sheetName = workbook.SheetNames[0];
+        if (!sheetName) return res.status(400).json({ error: 'Excel file has no sheets' });
+        const sheet = workbook.Sheets[sheetName];
+        const rawData = xlsx.utils.sheet_to_json(sheet, { defval: '', raw: false });
+
+        const isRowEmpty = (row) => {
+            const t = getCell(row, 'Title', 'title', 'Article', 'article');
+            const u = getCell(row, 'URL', 'url', 'Link', 'link');
+            return !t && !u;
+        };
+        const nonEmpty = rawData.filter(row => !isRowEmpty(row));
+        const articles = nonEmpty.map((row, index) => cleanArticleData(row, index));
+
+        if (articles.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'No articles found. Ensure the sheet has a header row and columns like Title, URL (or Article, Link). Download the template for the expected format.'
+            });
+        }
 
         console.log(`Processed ${articles.length} articles from Excel for "${newsletterName}"`);
-
-        // Return articles (Frontend will store in state/local storage for now)
         res.json({
             success: true,
             newsletterName,
@@ -238,10 +276,9 @@ router.post('/upload', upload.single('file'), async (req, res) => {
             count: articles.length,
             articles
         });
-
     } catch (error) {
         console.error('Error processing Excel:', error);
-        res.status(500).json({ error: 'Failed to process Excel file' });
+        res.status(500).json({ success: false, error: error.message || 'Failed to process Excel file' });
     }
 });
 
