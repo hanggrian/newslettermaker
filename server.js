@@ -17,11 +17,13 @@ app.use(express.static(path.join(__dirname, 'public')));
 const articlesRoutes = require('./routes/articles');
 const imagesRoutes = require('./routes/images');
 const stateRoutes = require('./routes/state');
+const newslettersRoutes = require('./routes/newsletters');
 
 // Use Routes
 app.use('/api/articles', articlesRoutes);
 app.use('/api/images', imagesRoutes);
 app.use('/api/state', stateRoutes);
+app.use('/api/newsletters', newslettersRoutes);
 
 // Basic Health Check
 app.get('/api/health', (req, res) => {

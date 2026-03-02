@@ -7,9 +7,11 @@ document.addEventListener('DOMContentLoaded', () => {
         MED: { intro: '', outro: '' },
         THC: { intro: '', outro: '' },
         CBD: { intro: '', outro: '' },
-        INV: { intro: '', outro: '' }
+        INV: { intro: '', outro: '' },
+        templates: { MED: '', THC: '', CBD: '', INV: '' }
     };
     let currentEditorTab = 'MED';
+    let lastGeneratedNewsletter = null;
 
     // Load State: first from LocalStorage (instant), then from Supabase if configured (overwrites)
     try {
@@ -22,12 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 articles = data.articles || [];
                 archivedArticles = data.archivedArticles || [];
                 inspirationalImages = data.inspirationalImages || [];
-                newsletterContent = data.newsletterContent || {
-                    MED: { intro: '', outro: '' },
-                    THC: { intro: '', outro: '' },
-                    CBD: { intro: '', outro: '' },
-                    INV: { intro: '', outro: '' }
-                };
+                const nc = data.newsletterContent || { MED: { intro: '', outro: '' }, THC: { intro: '', outro: '' }, CBD: { intro: '', outro: '' }, INV: { intro: '', outro: '' } };
+                newsletterContent = { ...nc, templates: nc.templates || { MED: '', THC: '', CBD: '', INV: '' } };
             }
         }
     } catch (e) {
@@ -91,7 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     articles = value.articles || [];
                     archivedArticles = value.archivedArticles || [];
                     inspirationalImages = value.inspirationalImages || [];
-                    newsletterContent = value.newsletterContent || newsletterContent;
+                    const nc = value.newsletterContent || newsletterContent;
+                    newsletterContent = { ...nc, templates: nc.templates || { MED: '', THC: '', CBD: '', INV: '' } };
                     localStorage.setItem('newsletter_articles', JSON.stringify({ articles, archivedArticles, inspirationalImages, newsletterContent }));
                     if (typeof renderArticles === 'function') renderArticles();
                 }
@@ -102,6 +101,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     localStorage.setItem('newsletter_saved_sessions', JSON.stringify(value));
                     if (typeof populateSavedDropdown === 'function') populateSavedDropdown();
                     if (hintEl) hintEl.style.display = 'none';
+                    const nameEl = document.getElementById('newsletter-name');
+                    if (nameEl && nameEl.value.trim()) {
+                        currentSessionName = nameEl.value.trim();
+                    }
                 }
             } else if (hintEl && hintEl.style.display !== 'none') {
                 await window.updateStateHintFromDiagnostic();
@@ -196,6 +199,15 @@ document.addEventListener('DOMContentLoaded', () => {
         renderArticles();
     };
 
+    window.toggleAllImagePublish = (select) => {
+        const relevant = articles.filter(a => (a.categories && a.categories.length > 0) || a.status === 'COOL FINDS' || a.status === 'M');
+        relevant.forEach(a => {
+            a.publishImage = select;
+        });
+        saveState();
+        renderImagesView();
+    };
+
     window.renderImagesView = () => {
         const list = document.getElementById('images-list');
         list.innerHTML = '';
@@ -210,6 +222,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Table header
         list.innerHTML = `
             <div class="img-table-header">
+                <div class="img-col-select" style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                    <span style="font-size:0.75rem;">Publish</span>
+                    <span style="font-size:0.65rem;cursor:pointer;text-decoration:underline;" onclick="toggleAllImagePublish(true)">All</span>
+                    <span style="font-size:0.65rem;cursor:pointer;text-decoration:underline;" onclick="toggleAllImagePublish(false)">None</span>
+                </div>
                 <div class="img-col-article">Article</div>
                 <div class="img-col-cat">MED</div>
                 <div class="img-col-cat">THC</div>
@@ -248,8 +265,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
             }).join('');
 
+            if (article.publishImage === undefined) article.publishImage = !!article.image;
+
             const rowHtml = `
                 <div class="img-table-row">
+                    <div class="img-col-select" style="display:flex;align-items:center;justify-content:center;padding-top:8px;">
+                        <input type="checkbox" ${article.publishImage ? 'checked' : ''} onchange="updateArticleField(${originalIndex}, 'publishImage', this.checked)">
+                    </div>
                     <div class="img-col-article">
                         <textarea class="title-edit" rows="2"
                             onchange="updateArticleField(${originalIndex}, 'title', this.value)"
@@ -347,20 +369,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (data.success && data.images.length > 0) {
                 grid.innerHTML = '';
-                // Limit to 8 images for the 4x2 grid
                 const displayImages = data.images.slice(0, 8);
                 
                 displayImages.forEach(img => {
-                    // Direct img as grid item
                     const imgEl = document.createElement('img');
                     imgEl.src = img.preview;
-                    imgEl.className = 'mini-grid-item'; // Use CSS class
+                    imgEl.className = 'mini-grid-item';
                     imgEl.onclick = () => selectImage(index, img.download);
-                    
                     grid.appendChild(imgEl);
                 });
 
-                // Show pagination (if we had it in UI, but simplified for now)
+                const navDiv = document.createElement('div');
+                navDiv.className = 'img-page-nav';
+                const currentPage = article.imagePage || 1;
+                navDiv.innerHTML = `
+                    <button class="btn btn-sm btn-outline" ${currentPage <= 1 ? 'disabled' : ''} onclick="changeImagePage(${index}, -1)" title="Previous">&larr;</button>
+                    <span style="font-size:0.8rem; color:#555;">Page ${currentPage}</span>
+                    <button class="btn btn-sm btn-outline" onclick="changeImagePage(${index}, 1)" title="Next">&rarr;</button>
+                `;
+                grid.appendChild(navDiv);
             } else {
                 grid.innerHTML = '<div class="grid-placeholder">No images found.</div>';
             }
@@ -406,7 +433,7 @@ document.addEventListener('DOMContentLoaded', () => {
         searchArticleImages(index);
     };
 
-    // Upload local image file for an article
+    // Upload local image file for an article (uploads to purablis.com via GoDaddy FTP)
     window.uploadArticleImage = async (index, input) => {
         if (!input.files || !input.files[0]) return;
 
@@ -417,13 +444,19 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('image', input.files[0]);
 
         try {
-            const res = await fetch('/api/images/upload', {
+            const res = await fetch('/api/images/upload-article', {
                 method: 'POST',
                 body: formData
             });
             const data = await res.json();
             if (data.success) {
                 selectImage(index, data.url);
+                if (data.published) {
+                    articles[index].publishedImageUrl = data.url;
+                    saveState();
+                    if (label) label.textContent = 'Uploaded (purablis)';
+                }
+                else if (data.ftpError && label) label.textContent = 'Local only';
             } else {
                 alert('Upload failed: ' + (data.error || 'Unknown error'));
             }
@@ -431,7 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error(e);
             alert('Upload failed. See console for details.');
         } finally {
-            if (label) label.textContent = 'Choose File';
+            if (label) label.textContent = 'Upload File';
             input.value = '';
         }
     };
@@ -592,8 +625,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const summaryRulesValue = newsletterContent.summaryRules || '';
         const resultValue = content.result || '';
+        const templateValue = (newsletterContent.templates && newsletterContent.templates[currentEditorTab]) || '';
 
         container.innerHTML = `
+            <div class="form-group" style="padding: 12px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef; margin-bottom: 20px;">
+                <label style="font-weight: 600;">Template for ${currentEditorTab}</label>
+                <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 10px;">HTML template for this newsletter. Use {{SUMMARY}}, {{ARTICLES_HTML}}, {{INSPIRATIONAL_IMAGE}}, {{NEWSLETTER_NAME}} as placeholders.</p>
+                <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 10px;">
+                    <input type="file" id="template-single-input" accept=".html,.htm" style="font-size: 0.85rem;">
+                    <button class="btn btn-secondary btn-sm" onclick="uploadSingleTemplate()">Upload 1 (for ${currentEditorTab})</button>
+                    <span style="color: #999;">or</span>
+                    <input type="file" id="template-batch-input" accept=".html,.htm" multiple style="font-size: 0.85rem;">
+                    <button class="btn btn-secondary btn-sm" onclick="uploadAllTemplates()">Upload all 4</button>
+                </div>
+                <div id="template-status" style="font-size: 0.8rem; color: #666; margin-bottom: 8px;"></div>
+                <textarea id="editor-template" rows="6" class="form-control" style="font-family: monospace; font-size: 0.8rem; background: #fff;" oninput="updateTemplate('${currentEditorTab}', this.value)" placeholder="Paste or edit HTML template here..."></textarea>
+            </div>
+
             <div style="display: grid; grid-template-columns: 1fr 300px; gap: 20px; align-items: start;">
                 <div>
                     <div class="form-group">
@@ -641,6 +689,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button class="btn btn-outline btn-sm" onclick="copyEditorContent('${currentEditorTab}')">Copy ${currentEditorTab} Content</button>
             </div>
         `;
+        const templateEl = document.getElementById('editor-template');
+        if (templateEl) templateEl.value = templateValue || '';
     };
 
     window.bringArticlesToPrompt = (category) => {
@@ -673,6 +723,64 @@ document.addEventListener('DOMContentLoaded', () => {
     window.updateSummaryRules = (value) => {
         newsletterContent.summaryRules = value;
         saveState();
+    };
+
+    window.updateTemplate = (category, value) => {
+        if (!newsletterContent.templates) newsletterContent.templates = { MED: '', THC: '', CBD: '', INV: '' };
+        newsletterContent.templates[category] = value;
+        saveState();
+    };
+
+    window.uploadSingleTemplate = () => {
+        const input = document.getElementById('template-single-input');
+        const category = currentEditorTab;
+        const statusEl = document.getElementById('template-status');
+        if (!input || !input.files || !input.files[0]) return alert('Choose an HTML file first.');
+        const file = input.files[0];
+        const reader = new FileReader();
+        reader.onload = () => {
+            if (!newsletterContent.templates) newsletterContent.templates = { MED: '', THC: '', CBD: '', INV: '' };
+            newsletterContent.templates[category] = reader.result;
+            saveState();
+            input.value = '';
+            if (statusEl) statusEl.textContent = `Template for ${category} uploaded.`;
+            const ta = document.getElementById('editor-template');
+            if (ta && currentEditorTab === category) ta.value = reader.result;
+        };
+        reader.readAsText(file);
+    };
+
+    window.uploadAllTemplates = () => {
+        const input = document.getElementById('template-batch-input');
+        const statusEl = document.getElementById('template-status');
+        if (!input || !input.files || input.files.length !== 4) {
+            return alert('Select exactly 4 HTML files (in order: MED, THC, CBD, INV).');
+        }
+        const categories = ['MED', 'THC', 'CBD', 'INV'];
+        if (!newsletterContent.templates) newsletterContent.templates = { MED: '', THC: '', CBD: '', INV: '' };
+        let loaded = 0;
+        const done = () => {
+            loaded++;
+            if (loaded === 4) {
+                saveState();
+                input.value = '';
+                if (statusEl) statusEl.textContent = 'All 4 templates uploaded (MED, THC, CBD, INV).';
+                const ta = document.getElementById('editor-template');
+                if (ta && newsletterContent.templates && newsletterContent.templates[currentEditorTab]) {
+                    ta.value = newsletterContent.templates[currentEditorTab];
+                }
+            }
+        };
+        for (let i = 0; i < 4; i++) {
+            const file = input.files[i];
+            const cat = categories[i];
+            const reader = new FileReader();
+            reader.onload = () => {
+                newsletterContent.templates[cat] = reader.result;
+                done();
+            };
+            reader.readAsText(file);
+        }
     };
 
     window.generateSummary = async (category) => {
@@ -785,7 +893,69 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
         `;
+        const uploadBtn = document.getElementById('btn-upload-newsletters');
+        const exportGenBtn = document.getElementById('btn-export-generated');
+        if (uploadBtn) uploadBtn.disabled = !lastGeneratedNewsletter;
+        if (exportGenBtn) exportGenBtn.disabled = !lastGeneratedNewsletter;
     }
+
+    window.exportSpreadsheet = () => {
+        const chosen = articles.filter(a => ['Y', 'YM', 'COOL FINDS'].includes(a.status));
+        if (chosen.length === 0) return alert('No chosen articles to export.');
+
+        const medText = (newsletterContent.MED && newsletterContent.MED.result) || '';
+        const thcText = (newsletterContent.THC && newsletterContent.THC.result) || '';
+        const cbdText = (newsletterContent.CBD && newsletterContent.CBD.result) || '';
+        const invText = (newsletterContent.INV && newsletterContent.INV.result) || '';
+
+        const dataStartRow = 3;
+        const lastRow = Math.max(dataStartRow + chosen.length - 1, 500);
+
+        const aoa = [
+            [
+                '', '',
+                { t: 'n', f: `=COUNTA(C${dataStartRow}:C${lastRow})` },
+                { t: 'n', f: `=COUNTA(D${dataStartRow}:D${lastRow})` },
+                { t: 'n', f: `=COUNTA(E${dataStartRow}:E${lastRow})` },
+                { t: 'n', f: `=COUNTA(F${dataStartRow}:F${lastRow})` },
+                '', '',
+                medText, thcText, cbdText, invText
+            ],
+            ['Title', 'URL', 'MED', 'THC', 'CBD', 'INV', 'Image URL', 'Published Image URL', 'MED Newsletter Text', 'THC Newsletter Text', 'CBD Newsletter Text', 'INV Newsletter Text']
+        ];
+
+        chosen.forEach(a => {
+            const med = (a.ranks && a.ranks.MED) && String(a.ranks.MED).trim();
+            const thc = (a.ranks && a.ranks.THC) && String(a.ranks.THC).trim();
+            const cbd = (a.ranks && a.ranks.CBD) && String(a.ranks.CBD).trim();
+            const inv = (a.ranks && a.ranks.INV) && String(a.ranks.INV).trim();
+            const imgUrl = a.image || '';
+            const publishedImgUrl = (a.image && a.image.includes('purablis.com')) ? a.image : (a.publishedImageUrl || '');
+            aoa.push([
+                a.title || '',
+                a.url || '',
+                med || undefined,
+                thc || undefined,
+                cbd || undefined,
+                inv || undefined,
+                imgUrl,
+                publishedImgUrl,
+                '', '', '', ''
+            ]);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+        ws['!cols'] = [
+            { wch: 40 }, { wch: 50 }, { wch: 6 }, { wch: 6 }, { wch: 6 }, { wch: 6 },
+            { wch: 60 }, { wch: 60 },
+            { wch: 50 }, { wch: 50 }, { wch: 50 }, { wch: 50 }
+        ];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Newsletter Export');
+        const name = document.getElementById('newsletter-name')?.value || 'newsletter';
+        XLSX.writeFile(wb, `${String(name).replace(/[^a-zA-Z0-9 ]/g, '')}-export.xlsx`);
+    };
 
     window.exportNewsletter = () => {
         const data = {
@@ -807,6 +977,231 @@ document.addEventListener('DOMContentLoaded', () => {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+    };
+
+    function buildArticlesHtml(category) {
+        const relevant = articles.filter(a =>
+            ['Y', 'YM', 'COOL FINDS'].includes(a.status) &&
+            a.categories && a.categories.includes(category)
+        ).sort((a, b) => {
+            const rA = parseInt((a.ranks && a.ranks[category]) || 99);
+            const rB = parseInt((b.ranks && b.ranks[category]) || 99);
+            return rA - rB;
+        });
+        return relevant.map(a => `
+            <div class="article-item">
+                ${a.image ? `<img src="${a.image}" alt="" style="max-width:90px;height:90px;object-fit:cover;">` : ''}
+                <div>
+                    <strong>${(a.title || '').replace(/</g, '&lt;')}</strong>
+                    <a href="${a.url || '#'}">${(a.url || '').replace(/</g, '&lt;')}</a>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    window.generateNewsletters = () => {
+        const newsletterName = document.getElementById('newsletter-name')?.value || 'Newsletter';
+        const statusEl = document.getElementById('generate-status');
+        const uploadBtn = document.getElementById('btn-upload-newsletters');
+        const inspirationalImg = inspirationalImages && inspirationalImages[0] ? inspirationalImages[0] : '';
+
+        const newsletters = {};
+        const categories = ['MED', 'THC', 'CBD', 'INV'];
+
+        for (const cat of categories) {
+            const template = (newsletterContent.templates && newsletterContent.templates[cat]) || '';
+            const resultText = (newsletterContent[cat] && newsletterContent[cat].result) || '';
+            const articlesHtml = buildArticlesHtml(cat);
+
+            let html = template;
+
+            if (html) {
+                html = html
+                    .replace(/\{\{SUMMARY\}\}/g, resultText)
+                    .replace(/\{\{ARTICLES_HTML\}\}/g, articlesHtml)
+                    .replace(/\{\{INSPIRATIONAL_IMAGE\}\}/g, inspirationalImg)
+                    .replace(/\{\{NEWSLETTER_NAME\}\}/g, newsletterName);
+            } else {
+                const safeResult = (resultText || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+                html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${(newsletterName + ' - ' + cat).replace(/</g, '&lt;')}</title></head><body>
+                    <h1>${(newsletterName + ' - ' + cat).replace(/</g, '&lt;')}</h1>
+                    ${inspirationalImg ? `<img src="${inspirationalImg.replace(/"/g, '&quot;')}" alt="Header" style="max-width:100%;">` : ''}
+                    <div class="summary">${safeResult}</div>
+                    <div class="articles">${articlesHtml}</div>
+                </body></html>`;
+            }
+
+            newsletters[cat] = {
+                html,
+                resultText,
+                articles: articles.filter(a => ['Y', 'YM', 'COOL FINDS'].includes(a.status) && a.categories && a.categories.includes(cat)),
+                inspirationalImage: inspirationalImg
+            };
+        }
+
+        lastGeneratedNewsletter = {
+            meta: { name: newsletterName, generatedAt: new Date().toISOString() },
+            newsletters,
+            inspirationalImages,
+            articles: articles.filter(a => ['Y', 'YM', 'COOL FINDS'].includes(a.status))
+        };
+
+        if (uploadBtn) uploadBtn.disabled = false;
+        const exportBtn = document.getElementById('btn-export-generated');
+        if (exportBtn) exportBtn.disabled = false;
+        if (statusEl) statusEl.textContent = `Generated ${categories.length} newsletters. Ready to upload.`;
+    };
+
+    window.exportGeneratedNewsletter = () => {
+        if (!lastGeneratedNewsletter) return alert('Generate newsletters first.');
+        const blob = new Blob([JSON.stringify(lastGeneratedNewsletter, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `newsletter-generated-${(lastGeneratedNewsletter.meta.name || 'newsletter').replace(/\s/g, '-')}-${Date.now()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    window.uploadNewslettersToServer = async () => {
+        if (!lastGeneratedNewsletter) return alert('Generate newsletters first.');
+        const statusEl = document.getElementById('generate-status');
+        const uploadBtn = document.getElementById('btn-upload-newsletters');
+        const name = lastGeneratedNewsletter.meta.name;
+        if (!name) return alert('Enter a newsletter name on the first page.');
+
+        if (uploadBtn) uploadBtn.disabled = true;
+        if (statusEl) statusEl.textContent = 'Uploading...';
+
+        try {
+            const res = await fetch('/api/newsletters', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, generated: lastGeneratedNewsletter })
+            });
+            const data = await res.json();
+            if (res.ok && data.ok) {
+                if (statusEl) statusEl.textContent = `Saved to database as "${name}".`;
+            } else {
+                throw new Error(data.error || 'Upload failed');
+            }
+        } catch (e) {
+            console.error(e);
+            if (statusEl) statusEl.textContent = 'Upload failed: ' + (e.message || 'network error');
+            if (uploadBtn) uploadBtn.disabled = false;
+        }
+    };
+
+    window.publishAllImagesToPurablis = async () => {
+        const relevant = articles.filter(a => (a.categories && a.categories.length > 0) || a.status === 'COOL FINDS' || a.status === 'M');
+        const withImages = relevant.filter(a => a.image && (a.publishImage !== false) && !a.image.includes('purablis.com') && !a.image.startsWith('blob:'));
+        if (withImages.length === 0) {
+            const hasAny = relevant.some(a => a.image);
+            return alert(hasAny ? 'All images are already on purablis.com.' : 'No images to publish. Select images for articles first.');
+        }
+
+        const btn = document.querySelector('[onclick="publishAllImagesToPurablis()"]');
+        if (btn) btn.disabled = true;
+
+        let ok = 0, fail = 0;
+        const errors = [];
+        for (let i = 0; i < withImages.length; i++) {
+            const a = withImages[i];
+            const idx = articles.indexOf(a);
+            let url = a.image;
+            if (url.startsWith('/') && !url.startsWith('//') && typeof window !== 'undefined') {
+                url = window.location.origin + url;
+            }
+            try {
+                const res = await fetch('/api/images/publish-to-purablis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const data = await res.json();
+                if (data.success && data.url) {
+                    articles[idx].image = data.url;
+                    articles[idx].publishedImageUrl = data.url;
+                    saveState();
+                    const box = document.getElementById(`selected-img-${idx}`);
+                    if (box) {
+                        box.innerHTML = `<div class="selected-image-container"><img src="${data.url}" class="img-fluid" style="max-height: 120px;"><button class="btn-remove-image" onclick="removeImage(${idx})">×</button></div>`;
+                    }
+                    ok++;
+                } else {
+                    fail++;
+                    errors.push((a.title || 'Article').slice(0, 30) + ': ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) {
+                fail++;
+                errors.push((a.title || 'Article').slice(0, 30) + ': ' + (e.message || 'Network error'));
+                console.warn('Publish failed for', url, e);
+            }
+            if (btn) btn.textContent = `Publishing ${i + 1}/${withImages.length}...`;
+        }
+
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Publish Selected to purablis';
+        }
+        let msg = ok > 0 ? `Published ${ok} image(s) to purablis.com.` : '';
+        if (fail > 0) msg += (msg ? ' ' : '') + `${fail} failed.` + (errors.length ? '\n' + errors.slice(0, 3).join('\n') : '');
+        if (!msg) msg = 'No images were published.';
+        alert(msg);
+    };
+
+    window.downloadAllImagesZip = async () => {
+        const relevant = articles.filter(a => (a.categories && a.categories.length > 0) || a.status === 'COOL FINDS' || a.status === 'M');
+        const withImages = relevant.filter(a => a.image);
+        if (withImages.length === 0) return alert('No images selected. Select images for articles first.');
+
+        if (typeof JSZip === 'undefined') return alert('JSZip not loaded. Please refresh the page.');
+
+        const zip = new JSZip();
+        let done = 0;
+        const total = withImages.length;
+
+        for (let i = 0; i < withImages.length; i++) {
+            const a = withImages[i];
+            const url = a.image;
+            const ext = url.match(/\.(png|jpg|jpeg|gif|webp|svg)/i) ? '' : '.png';
+            const safeTitle = (a.title || `article-${i + 1}`).replace(/[^a-zA-Z0-9-_]/g, '_').slice(0, 40);
+            const filename = `${i + 1}-${safeTitle}${ext}`;
+            try {
+                if (url.startsWith('data:')) {
+                    const base64 = url.split(',')[1];
+                    if (base64) zip.file(filename, base64, { base64: true });
+                } else {
+                    const res = await fetch(url, { mode: 'cors' });
+                    if (res.ok) {
+                        const blob = await res.blob();
+                        zip.file(filename, blob);
+                    }
+                }
+            } catch (e) {
+                console.warn('Could not fetch image:', url?.slice(0, 50), e);
+            }
+            done++;
+            if (done % 5 === 0 || done === total) {
+                const btn = document.querySelector('[onclick="downloadAllImagesZip()"]');
+                if (btn) btn.textContent = `Downloading... ${done}/${total}`;
+            }
+        }
+
+        const blob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `newsletter-images-${Date.now()}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        const btn = document.querySelector('[onclick="downloadAllImagesZip()"]');
+        if (btn) btn.textContent = 'Download All Images (ZIP)';
     };
 
     window.exportArticlesXls = () => {
@@ -1156,44 +1551,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const sessions = getSavedSessions();
 
-        if (sessions[name] && currentSessionName !== name) {
-            const existing = sessions[name];
-            const existingCount = (existing.articles || []).length;
-            const existingDate = existing.savedAt ? new Date(existing.savedAt).toLocaleString() : 'unknown';
-            
-            const action = prompt(
-                `"${name}" already exists (${existingCount} articles, saved ${existingDate}).\n\n` +
-                `Type a NEW name to save separately, or type "overwrite" to replace it:`,
-                name + ' - ' + new Date().toLocaleDateString()
-            );
-            
-            if (!action) return;
-            
-            if (action.toLowerCase() === 'overwrite') {
-                // Fall through to save with same name
-            } else {
-                // Save with the new name instead
-                const newName = action.trim();
-                if (!newName) return;
-                if (sessions[newName]) {
-                    return alert(`"${newName}" also already exists. Please pick a unique name.`);
-                }
-                document.getElementById('newsletter-name').value = newName;
-                sessions[newName] = {
-                    articles: JSON.parse(JSON.stringify(articles)),
-                    archivedArticles: JSON.parse(JSON.stringify(archivedArticles)),
-                    inspirationalImages: [...inspirationalImages],
-                    newsletterContent: JSON.parse(JSON.stringify(newsletterContent)),
-                    savedAt: new Date().toISOString()
-                };
-                saveSavedSessions(sessions);
-                currentSessionName = newName;
-                populateSavedDropdown();
-                alert(`Saved as "${newName}" (${articles.length} articles).`);
-                return;
-            }
-        }
-
         sessions[name] = {
             articles: JSON.parse(JSON.stringify(articles)),
             archivedArticles: JSON.parse(JSON.stringify(archivedArticles)),
@@ -1221,7 +1578,8 @@ document.addEventListener('DOMContentLoaded', () => {
         articles = session.articles || [];
         archivedArticles = session.archivedArticles || [];
         inspirationalImages = session.inspirationalImages || [];
-        newsletterContent = session.newsletterContent || { MED: { intro: '', outro: '' }, THC: { intro: '', outro: '' }, CBD: { intro: '', outro: '' }, INV: { intro: '', outro: '' } };
+        const nc = session.newsletterContent || { MED: { intro: '', outro: '' }, THC: { intro: '', outro: '' }, CBD: { intro: '', outro: '' }, INV: { intro: '', outro: '' } };
+        newsletterContent = { ...nc, templates: nc.templates || { MED: '', THC: '', CBD: '', INV: '' } };
 
         document.getElementById('newsletter-name').value = name;
         currentSessionName = name;
@@ -1307,10 +1665,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     articles.push(...(value.articles || []));
                     archivedArticles = value.archivedArticles || [];
                     inspirationalImages = value.inspirationalImages || [];
-                    newsletterContent = value.newsletterContent || newsletterContent;
+                    const nc = value.newsletterContent || newsletterContent;
+                    newsletterContent = { ...nc, templates: nc.templates || { MED: '', THC: '', CBD: '', INV: '' } };
                     localStorage.setItem('newsletter_articles', JSON.stringify({ articles, archivedArticles, inspirationalImages, newsletterContent }));
                     if (typeof renderArticles === 'function') renderArticles();
                     msg = (value.articles || []).length + ' articles in workspace. ';
+                    const nameEl = document.getElementById('newsletter-name');
+                    if (nameEl && nameEl.value.trim()) {
+                        currentSessionName = nameEl.value.trim();
+                    }
                 }
             } else if (wrRes.status === 503) {
                 msg = 'Server database not configured. ';
