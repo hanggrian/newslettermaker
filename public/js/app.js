@@ -41,6 +41,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetch('/api/state?key=workspace'),
                 fetch('/api/state?key=sessions')
             ]);
+            const hintEl = document.getElementById('state-load-hint');
+            if (sessRes.status === 503 || wrRes.status === 503) {
+                if (hintEl) hintEl.style.display = 'block';
+            }
             if (wrRes.ok) {
                 const { value } = await wrRes.json();
                 if (value && value.articles) {
@@ -57,10 +61,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (value && typeof value === 'object') {
                     localStorage.setItem('newsletter_saved_sessions', JSON.stringify(value));
                     if (typeof populateSavedDropdown === 'function') populateSavedDropdown();
+                    if (hintEl) hintEl.style.display = 'none';
                 }
             }
         } catch (e) {
-            // DB not configured or network error — keep localStorage data
+            const hintEl = document.getElementById('state-load-hint');
+            if (hintEl) hintEl.style.display = 'block';
         }
     })();
 
@@ -1153,6 +1159,9 @@ document.addEventListener('DOMContentLoaded', () => {
             opt.textContent = `${name} (${count} articles, ${date})`;
             dropdown.appendChild(opt);
         });
+
+        const hintEl = document.getElementById('state-load-hint');
+        if (hintEl && names.length === 0) hintEl.style.display = 'block';
     }
 
     window.refreshStateFromServer = async function () {
@@ -1184,9 +1193,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (typeof populateSavedDropdown === 'function') populateSavedDropdown();
                     const n = Object.keys(value).length;
                     msg += n + ' saved session(s) loaded (e.g. Week 1).';
+                    const hintEl = document.getElementById('state-load-hint');
+                    if (hintEl) hintEl.style.display = 'none';
                 }
             } else if (sessRes.status === 503) {
                 msg = (msg || '') + 'Sessions: server database not configured.';
+                const hintEl = document.getElementById('state-load-hint');
+                if (hintEl) hintEl.style.display = 'block';
             }
             alert(msg || 'No data from server.');
         } catch (e) {
