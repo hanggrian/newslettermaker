@@ -590,21 +590,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const content = newsletterContent[currentEditorTab];
         let promptValue = content.prompt || '';
 
-        const categoryArticles = articles.filter(a =>
-            a.categories && a.categories.includes(currentEditorTab)
-        ).sort((a, b) => {
-            const rankA = parseInt((a.ranks && a.ranks[currentEditorTab]) || 99);
-            const rankB = parseInt((b.ranks && b.ranks[currentEditorTab]) || 99);
-            return rankA - rankB;
-        });
-
-        const articleListHTML = categoryArticles.length > 0
-            ? categoryArticles.map((a, i) => {
-                const rank = (a.ranks && a.ranks[currentEditorTab]) || '';
-                return `<span style="font-size:0.8rem; color:#555;">${i + 1}. [${rank}] ${a.title.substring(0, 50)}${a.title.length > 50 ? '...' : ''}</span>`;
-            }).join('<br>')
-            : '<span style="font-size:0.8rem; color:#999;">No articles in this category yet.</span>';
-
         const summaryRulesValue = newsletterContent.summaryRules || '';
         const resultValue = content.result || '';
 
@@ -616,24 +601,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         <textarea id="editor-prompt" rows="8" class="form-control" style="font-family: monospace; font-size: 0.9rem;" oninput="updateNewsletterContent('${currentEditorTab}', 'prompt', this.value)">${promptValue}</textarea>
                     </div>
 
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <input type="text" id="bring-articles-input" placeholder="e.g. 1,2,3" style="width: 120px; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem;">
-                            <button class="btn btn-secondary btn-sm" onclick="bringArticlesToPrompt('${currentEditorTab}')">Bring Articles</button>
-                        </div>
-                        <div style="font-size: 0.78rem; color: #888; border-left: 1px solid #ddd; padding-left: 10px;">
-                            ${articleListHTML}
-                        </div>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                        <input type="text" id="bring-articles-input" placeholder="e.g. 1,2,3" style="width: 120px; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem;">
+                        <button class="btn btn-secondary btn-sm" onclick="bringArticlesToPrompt('${currentEditorTab}')">Bring Articles</button>
                     </div>
 
                     <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; justify-content: space-between; flex-wrap: wrap;">
                         <div style="display: flex; align-items: center; gap: 15px;">
                             <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 0.9rem;">
-                                <input type="radio" name="useRulesGroup-${currentEditorTab}" ${content.useRules !== false ? 'checked' : ''} onchange="updateNewsletterContent('${currentEditorTab}', 'useRules', true)">
+                                <input type="radio" id="rules-on-${currentEditorTab}" name="useRulesGroup-${currentEditorTab}" ${content.useRules !== false ? 'checked' : ''} onchange="updateNewsletterContent('${currentEditorTab}', 'useRules', true)">
                                 Use Summary Rules
                             </label>
                             <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 0.9rem;">
-                                <input type="radio" name="useRulesGroup-${currentEditorTab}" ${content.useRules === false ? 'checked' : ''} onchange="updateNewsletterContent('${currentEditorTab}', 'useRules', false)">
+                                <input type="radio" id="rules-off-${currentEditorTab}" name="useRulesGroup-${currentEditorTab}" ${content.useRules === false ? 'checked' : ''} onchange="updateNewsletterContent('${currentEditorTab}', 'useRules', false)">
                                 Custom (No Rules)
                             </label>
                         </div>
@@ -697,8 +677,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.generateSummary = async (category) => {
         const prompt = document.getElementById('editor-prompt').value;
-        const useRules = document.querySelector(`input[name="useRulesGroup-${category}"]:checked`);
-        const isUseRules = useRules ? useRules.nextSibling.textContent.trim().startsWith('Use') : true;
+        const rulesOnEl = document.getElementById(`rules-on-${category}`);
+        const isUseRules = rulesOnEl ? rulesOnEl.checked : true;
         const summaryRules = isUseRules ? (newsletterContent.summaryRules || '') : '';
         const btnText = document.getElementById(`gen-btn-text-${category}`);
 
@@ -721,11 +701,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const resultEl = document.getElementById('editor-result');
                 if (resultEl) resultEl.value = resultText;
             } else {
-                alert('Generation failed: ' + (data.error || 'Unknown error'));
+                alert('Generation failed: ' + (data.error || 'Unknown error') + (data.details ? '\n' + data.details : ''));
             }
         } catch (e) {
             console.error(e);
-            alert('Error generating summary.');
+            alert('Error generating summary: ' + e.message);
         } finally {
             btnText.textContent = 'Generate Summary';
         }

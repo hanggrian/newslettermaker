@@ -611,6 +611,10 @@ router.post('/summarize', async (req, res) => {
 
         console.log(`Generating summaries for ${category} with rules: ${useRules}`);
 
+        if (!process.env.ANTHROPIC_API_KEY) {
+            return res.status(503).json({ error: 'ANTHROPIC_API_KEY not configured on the server. Add it in Vercel → Environment Variables.' });
+        }
+
         let systemPrompt = `You are a professional newsletter editor. Summarize the provided articles based on the user's instructions.`;
 
         if (useRules && summaryRules && summaryRules.trim()) {
