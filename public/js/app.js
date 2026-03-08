@@ -1622,6 +1622,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }).join('');
 
         updateStats();
+        highlightLongTitles();
+    }
+
+    function highlightLongTitles() {
+        const list = document.getElementById('articles-list');
+        if (!list) return;
+        list.querySelectorAll('.title-edit').forEach(ta => {
+            if (ta.scrollHeight > ta.clientHeight) {
+                ta.classList.add('title-overflow');
+            } else {
+                ta.classList.remove('title-overflow');
+            }
+        });
     }
 
     // Update Article Field
@@ -1649,6 +1662,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (field === 'url') {
             // Re-render to update the link icon
             renderArticles();
+        } else if (field === 'title') {
+            saveState();
+            requestAnimationFrame(highlightLongTitles);
         } else {
             // For other fields, just save
             saveState();
@@ -1780,7 +1796,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ? `<span class="stat-item" style="background:#e8eaf6; color:#283593; font-weight:600;">${currentSessionName}</span>` 
             : '';
 
-        statsEl.innerHTML = `
+        const statsHtml = `
             ${sessionLabel}
             <span class="stat-item" title="Total articles in list">Total: ${articles.length}</span>
             <span class="stat-item" style="background:#e0f7fa; color:#006064;" title="Status Y/YM/COOL FINDS">Selected: ${validStatusCount}</span>
@@ -1789,6 +1805,9 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="stat-item" style="background:#fff3e0; color:#e65100;">CBD: ${counts.CBD}</span>
             <span class="stat-item" style="background:#f3e5f5; color:#4a148c;">INV: ${counts.INV}</span>
         `;
+        statsEl.innerHTML = statsHtml;
+        const footerEl = document.getElementById('article-stats-footer');
+        if (footerEl) footerEl.innerHTML = statsHtml;
     }
 
     // Remove Article (no confirmation)

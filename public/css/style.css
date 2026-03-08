@@ -324,6 +324,10 @@ input:focus, textarea:focus, select:focus {
     resize: vertical;
     box-sizing: border-box;
 }
+.title-edit.title-overflow {
+    background: #fff8e1;
+    border-color: #ffb74d;
+}
 .article-added-at {
     font-size: 0.75rem;
     color: #555;
