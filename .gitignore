@@ -2,11 +2,9 @@
 .DS_Store
 ._*
 
-# Node
+# Node.js
 node_modules/
 .env
-.env.*
-!.env.example
 public/uploads/
 *.log
 debug_dump.json
