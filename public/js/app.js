@@ -1,18 +1,162 @@
+const GREETING_OPTIONS = Array.from(new Set([
+    'Thanks and have a great week',
+    'Thanks',
+    'Enjoy your week!',
+    'Have a stupendous week!',
+    'Thanks and have a marvelous week!',
+    'I hope you have a special week!',
+    'Have a tremendous week!',
+    'I hope you have a remarkable week',
+    'Have a wondrous week!',
+    'I hope you have a sensational week!',
+    'Have a Super New Year!',
+    'Thanks and have a dynamite week!',
+    'I hope your week is something else!',
+    'Have a brilliant week!',
+    'Have an enjoyable week!',
+    'Thanks and have a fabulous week!',
+    'Thanks and have an excellent week!',
+    'Thanks and have a magnificent week!',
+    'Thanks and have a phenomenal week!',
+    'Thanks and have a superb week!',
+    'Thanks and have a pleasant week!',
+    'Stay safe and cozy! :)',
+    'Stay safe and cozy!',
+    'Have a Terrific Week',
+    'Thanks and have a stupendous week!',
+    'Have an exceptional week!',
+    'Have a fantastic week and stay safe,',
+    'Thanks and have a great week!',
+    'Have a warm summer week!',
+    'Thanks and have a sunny week!',
+    'Thanks and have a spectacular week!',
+    'Thanks and have an astounding week!',
+    'Thanks and have an impressive week!',
+    'Thanks and have a productive week!',
+    'Thanks and have a wonderful week!',
+    'Thanks and have an extraordinary week!',
+    'Thanks and have a super week!',
+    'Thanks and have an incredible week!',
+    'Thanks and have an unbelievable week!',
+    'Thanks and have a sublime week!',
+    'Thanks and have a rad week! :)',
+    'Thanks and have an outstanding week!',
+    'Thanks and have a splendid week!',
+    'Thanks and have a very good week!',
+    'Thanks and I hope you go vote!',
+    'Thanks and I hope you have a relaxing week,',
+    'Thanks and I hope you have a stellar week!',
+    'Happy Thanksgiving!',
+    'Have an awesome week!',
+    'Thanks and have a tremendous week!',
+    'Thanks and have an amazing week!',
+    'Happy Holidays!',
+    'Have a super-duper week!',
+    'I hope you have a marvelous week!',
+    'I hope your week is rad!',
+    'Have a sensational week!',
+    'Have a fantastic week!',
+    'I hope you have a productive week!',
+    'Have a magnificent week!',
+    'Have a relaxing week,',
+    'Have a fabulous week!',
+    'Have an incredible week!',
+    'Happy 420,',
+    'Have an excellent week!',
+    'Have an outstanding week!',
+    'Have a splendid week,',
+    'Have a wonderful week!',
+    'Have a stellar week!',
+    'Have an unbelievable week!',
+    'Have a dynamite week!',
+    'Best Wishes,',
+    'Have a sunny week,',
+    'Have a terrific week!',
+    'Have a spectacular week!',
+    'Have an extraordinary week!',
+    'Have an amazing week!',
+    'Have an impressive week!',
+    'Have a great week!',
+    'enjoy your week',
+    'Happy Hallowen!',
+    'Get ready for 2022! :)',
+    'Make 2022 awesome!',
+    'Have a peaceful week!',
+    'Enjoy Your Week!',
+    'Have a radical week',
+    'Have a rad week!',
+    'Please spread the love this thanksgiving! :)',
+    'Thanks and I hope you have a wondrous week,',
+    'Happy 4th of July!',
+    'Thanks and I hope you have a terrific week!',
+    'Merry Christmas!',
+    'Happy MLK Day!',
+    'Happy Labor Day!'
+]));
+const DEFAULT_GREETING = 'Have a fantastic week and stay safe,';
+const DEFAULT_SUMMARY_RULES = [
+    '1.  Only use the URLs provided in the user input.',
+    '2.  Do not use prior knowledge.',
+    '3.  Do not supplement with outside research.',
+    '4.  Do not infer facts not explicitly stated in the article.',
+    '5.  If a link cannot be accessed, explicitly state that the link could',
+    '    not be accessed.',
+    '6.  If a paywall prevents access, explicitly state that the article is',
+    '    paywalled.',
+    '7.  If partial access is available, only summarize the visible content.',
+    '8. Dont use em dashes',
+    '9. Final product should be a paragraph',
+    '10. Each article should be summarized by one sentence.',
+    '12. Do not use past participles',
+    '13. make it casual',
+    '14. Here is the lancet article to summarize into a sentence.',
+    '15. Dont include the names of the periodicals or the studies',
+    '16. Keep sentences succinct but give important data if applicable.'
+].join('\n');
+function normalizeSummaryRules(value) {
+    const text = String(value || '').trim();
+    if (!text) return DEFAULT_SUMMARY_RULES;
+    if (
+        text.includes('# Newsletter Summary Rules') ||
+        text.includes('## SYSTEM PROMPT: Newsletter Summary Engine') ||
+        text.includes('## SOURCE RESTRICTIONS') ||
+        text.includes('## SUMMARY STRUCTURE') ||
+        text.includes('## OUTPUT FORMAT')
+    ) {
+        return DEFAULT_SUMMARY_RULES;
+    }
+    return value;
+}
+const LEGACY_DEFAULT_SUBJECT_PROMPT = "From the top 3 articles for each 4 category, Create a small Clicky subject by suitable Emojis. Keep Emojis first then subjects with space and don't use \"|\" in between. Same articles should have same Subjects.";
+const DEFAULT_SUBJECT_PROMPT = "From the top 3 articles for each 4 category, Create a small Clicky subject by suitable Emojis. Keep Emojis first then subjects with space and don't use \"|\" in between. Same articles should have same Subjects.";
+
 // Global State
 let articles = [];
 let archivedArticles = [];
 let laterCoolArticles = [];
 let inspirationalImages = [];
+let inspirationalLibraryImages = [];
 let newsletterContent = {
     MED: { intro: '', outro: '' },
     THC: { intro: '', outro: '' },
     CBD: { intro: '', outro: '' },
     INV: { intro: '', outro: '' },
-    templates: { MED: '', THC: '', CBD: '', INV: '' }
+    templates: { MED: '', THC: '', CBD: '', INV: '' },
+    summaryRules: DEFAULT_SUMMARY_RULES,
+    selectedGreeting: DEFAULT_GREETING,
+    subjectPrompt: DEFAULT_SUBJECT_PROMPT,
+    generatedSubjects: { MED: '', THC: '', CBD: '', INV: '' }
 };
 let currentEditorTab = 'MED';
+let currentConfirmationTab = 'MED';
 let lastGeneratedNewsletter = null;
+const confirmationTemplateCache = {};
+const confirmationRenderedHtml = { MED: '', THC: '', CBD: '', INV: '' };
+let confirmationInspirationalImage = '';
+let articleTitleSortOrder = '';
+let imageViewSortOrder = '';
 let batchFilter = ''; // '' = all, or addedAt ISO string to show only that batch
+const INSPIRATIONAL_LIBRARY_CACHE_KEY = 'newsletter_inspirational_library';
 
 // Load State: first from LocalStorage (instant), then from Supabase if configured (overwrites)
 try {
@@ -22,16 +166,179 @@ try {
         if (Array.isArray(data)) {
             articles = data;
         } else {
-            articles = data.articles || [];
-            archivedArticles = data.archivedArticles || [];
-            laterCoolArticles = data.laterCoolArticles || [];
-            inspirationalImages = data.inspirationalImages || [];
-            const nc = data.newsletterContent || { MED: { intro: '', outro: '' }, THC: { intro: '', outro: '' }, CBD: { intro: '', outro: '' }, INV: { intro: '', outro: '' } };
-            newsletterContent = { ...nc, templates: nc.templates || { MED: '', THC: '', CBD: '', INV: '' } };
+            applyWorkspaceState(data, { mergeLibrary: true });
         }
+    }
+    const savedLibrary = localStorage.getItem(INSPIRATIONAL_LIBRARY_CACHE_KEY);
+    if (savedLibrary) {
+        inspirationalLibraryImages = JSON.parse(savedLibrary);
     }
 } catch (e) {
     console.error('Failed to load state', e);
+}
+
+function buildWorkspaceState() {
+    return {
+        articles,
+        archivedArticles,
+        laterCoolArticles,
+        inspirationalImages,
+        confirmationInspirationalImage,
+        inspirationalLibraryImages,
+        newsletterContent,
+        lastGeneratedNewsletter
+    };
+}
+
+function persistWorkspaceLocal(state) {
+    const nextState = state || buildWorkspaceState();
+    localStorage.setItem('newsletter_articles', JSON.stringify(nextState));
+    localStorage.setItem(INSPIRATIONAL_LIBRARY_CACHE_KEY, JSON.stringify(nextState.inspirationalLibraryImages || []));
+}
+
+function normalizeSubjectPrompt(prompt) {
+    const value = String(prompt || '').trim();
+    if (!value || value === LEGACY_DEFAULT_SUBJECT_PROMPT) {
+        return DEFAULT_SUBJECT_PROMPT;
+    }
+    return value;
+}
+
+function hasCategorySelection(article) {
+    if (!article || !article.ranks) return false;
+    return ['MED', 'THC', 'CBD', 'INV'].some((cat) => {
+        const value = article.ranks[cat];
+        return value !== undefined && value !== null && String(value).trim() !== '';
+    });
+}
+
+function isSelectedArticle(article) {
+    const status = String(article?.status || '').trim().toUpperCase();
+    return ['Y', 'YM', 'COOL FINDS'].includes(status) || hasCategorySelection(article);
+}
+
+function applyWorkspaceState(state, { mergeLibrary = false } = {}) {
+    const value = state || {};
+    articles = Array.isArray(value.articles) ? value.articles : [];
+    archivedArticles = Array.isArray(value.archivedArticles) ? value.archivedArticles : [];
+    laterCoolArticles = Array.isArray(value.laterCoolArticles) ? value.laterCoolArticles : [];
+    inspirationalImages = Array.isArray(value.inspirationalImages) ? value.inspirationalImages : [];
+    confirmationInspirationalImage = typeof value.confirmationInspirationalImage === 'string' ? value.confirmationInspirationalImage : '';
+    if (Array.isArray(value.inspirationalLibraryImages)) {
+        inspirationalLibraryImages = value.inspirationalLibraryImages;
+    } else if (!mergeLibrary) {
+        inspirationalLibraryImages = [];
+    }
+    const nc = value.newsletterContent || { MED: { intro: '', outro: '' }, THC: { intro: '', outro: '' }, CBD: { intro: '', outro: '' }, INV: { intro: '', outro: '' } };
+    newsletterContent = {
+        ...nc,
+        templates: nc.templates || { MED: '', THC: '', CBD: '', INV: '' },
+        summaryRules: normalizeSummaryRules(nc.summaryRules),
+        selectedGreeting: nc.selectedGreeting || DEFAULT_GREETING,
+        subjectPrompt: normalizeSubjectPrompt(nc.subjectPrompt),
+        generatedSubjects: nc.generatedSubjects || { MED: '', THC: '', CBD: '', INV: '' }
+    };
+    lastGeneratedNewsletter = value.lastGeneratedNewsletter || null;
+    persistWorkspaceLocal(buildWorkspaceState());
+}
+
+function buildSessionsState(includeCurrentWorkspace = false) {
+    const sessions = getSavedSessions();
+    if (includeCurrentWorkspace) {
+        const nameEl = document.getElementById('newsletter-name');
+        const name = currentSessionName || (nameEl ? nameEl.value.trim() : '');
+        if (name) {
+            sessions[name] = {
+                articles: JSON.parse(JSON.stringify(articles)),
+                archivedArticles: JSON.parse(JSON.stringify(archivedArticles)),
+                inspirationalImages: [...inspirationalImages],
+                newsletterContent: JSON.parse(JSON.stringify(newsletterContent)),
+                savedAt: new Date().toISOString()
+            };
+        }
+    }
+    return sessions;
+}
+
+async function convertLocalUploadUrlsForSharing() {
+    const urls = new Set();
+    const addUrl = (value) => {
+        const str = String(value || '').trim();
+        if (!str) return;
+        if (str.startsWith('/uploads/') || /\/uploads\/[^?#]+/i.test(str)) {
+            urls.add(str);
+        }
+    };
+
+    articles.forEach((article) => {
+        addUrl(article.image);
+        addUrl(article.originalImageUrl);
+        addUrl(article.publishedImageUrl);
+        addUrl(article.uploadedImageUrl);
+    });
+    inspirationalImages.forEach(addUrl);
+    inspirationalLibraryImages.forEach((item) => addUrl(item && item.url));
+
+    if (urls.size === 0) return;
+
+    const res = await fetch('/api/images/inline-local', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls: Array.from(urls) })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to convert local uploads for sharing');
+    }
+
+    const mapUrl = (value) => {
+        const str = String(value || '').trim();
+        return data.results && data.results[str] ? data.results[str] : value;
+    };
+
+    articles = articles.map((article) => ({
+        ...article,
+        image: mapUrl(article.image),
+        originalImageUrl: mapUrl(article.originalImageUrl),
+        publishedImageUrl: mapUrl(article.publishedImageUrl),
+        uploadedImageUrl: mapUrl(article.uploadedImageUrl)
+    }));
+    inspirationalImages = inspirationalImages.map(mapUrl);
+    inspirationalLibraryImages = inspirationalLibraryImages.map((item) => item && item.url ? { ...item, url: mapUrl(item.url) } : item);
+}
+
+async function parseJsonResponse(res, fallbackMessage) {
+    const contentType = (res.headers.get('content-type') || '').toLowerCase();
+    if (contentType.includes('application/json')) {
+        return res.json();
+    }
+    const text = await res.text();
+    const looksLikeHtml = /^\s*<!doctype html/i.test(text) || /^\s*<html/i.test(text);
+    if (looksLikeHtml) {
+        throw new Error(fallbackMessage || 'Server returned HTML instead of JSON. Restart the app server and try again.');
+    }
+    throw new Error(fallbackMessage || 'Server did not return JSON.');
+}
+
+async function getAiClarificationFromError(data) {
+    const directDetails = String(data?.details || '').trim();
+    if (directDetails) return directDetails;
+
+    const errorText = String(data?.error || '').trim();
+    const logMatch = errorText.match(/Log ID:\s*(\d+)/i);
+    if (!logMatch) return '';
+
+    try {
+        const res = await fetch(`/api/articles/error-log/${logMatch[1]}`);
+        const logData = await res.json().catch(() => ({}));
+        if (res.ok && logData && logData.success && logData.content) {
+            return String(logData.content).trim();
+        }
+    } catch (err) {
+        console.error('Failed to fetch AI clarification log:', err);
+    }
+
+    return '';
 }
 
 // Load from Supabase (DB) — overwrites if server has data
@@ -43,10 +350,10 @@ window.updateStateHintFromDiagnostic = async function () {
         const res = await fetch('/api/state/diagnostic');
         const d = await res.json().catch(() => ({}));
         if (d.configured && d.sessionsCount && !d.dbError) {
-            hintEl.classList.add('hidden');
+            hintEl.style.display = 'none';
             return;
         }
-        hintEl.classList.remove('hidden');
+        hintEl.style.display = 'block';
         if (!res.ok) {
             textEl.textContent = 'Cannot reach server. Check deployment and try Refresh from server.';
             return;
@@ -69,7 +376,7 @@ window.updateStateHintFromDiagnostic = async function () {
         }
         textEl.textContent = 'No sessions in database yet. Click Refresh from server after saving Week 1 from the app or running the upload script.';
     } catch (e) {
-        hintEl.classList.remove('hidden');
+        hintEl.style.display = 'block';
         textEl.textContent = 'Cannot reach /api/state. Is the server running? On Vercel, ensure the app is deployed with the Express server (see docs).';
     }
 };
@@ -82,19 +389,13 @@ window.updateStateHintFromDiagnostic = async function () {
         ]);
         const hintEl = document.getElementById('state-load-hint');
         if (sessRes.status === 503 || wrRes.status === 503) {
-            if (hintEl) hintEl.classList.remove('hidden');
+            if (hintEl) hintEl.style.display = 'block';
             await window.updateStateHintFromDiagnostic();
         }
         if (wrRes.ok) {
             const { value } = await wrRes.json();
             if (value && value.articles) {
-                articles = value.articles || [];
-                archivedArticles = value.archivedArticles || [];
-                laterCoolArticles = value.laterCoolArticles || [];
-                inspirationalImages = value.inspirationalImages || [];
-                const nc = value.newsletterContent || newsletterContent;
-                newsletterContent = { ...nc, templates: nc.templates || { MED: '', THC: '', CBD: '', INV: '' } };
-                localStorage.setItem('newsletter_articles', JSON.stringify({ articles, archivedArticles, laterCoolArticles, inspirationalImages, newsletterContent }));
+                applyWorkspaceState(value, { mergeLibrary: true });
                 if (typeof renderArticles === 'function') renderArticles();
             }
         }
@@ -106,32 +407,26 @@ window.updateStateHintFromDiagnostic = async function () {
                 Object.keys(local).forEach(k => { if (!(k in merged)) merged[k] = local[k]; });
                 localStorage.setItem('newsletter_saved_sessions', JSON.stringify(merged));
                 if (typeof populateSavedDropdown === 'function') populateSavedDropdown();
-                if (hintEl) hintEl.classList.add('hidden');
+                if (hintEl) hintEl.style.display = 'none';
                 const nameEl = document.getElementById('newsletter-name');
                 if (nameEl && nameEl.value.trim()) {
                     currentSessionName = nameEl.value.trim();
                 }
             }
-        } else if (hintEl && !hintEl.classList.contains('hidden')) {
+        } else if (hintEl && hintEl.style.display !== 'none') {
             await window.updateStateHintFromDiagnostic();
         }
     } catch (e) {
         const hintEl = document.getElementById('state-load-hint');
-        if (hintEl) hintEl.classList.remove('hidden');
+        if (hintEl) hintEl.style.display = 'block';
         await window.updateStateHintFromDiagnostic();
     }
 })();
 
 let workspaceSyncTimeout = null;
 function saveState() {
-    const state = {
-        articles,
-        archivedArticles,
-        laterCoolArticles,
-        inspirationalImages,
-        newsletterContent
-    };
-    localStorage.setItem('newsletter_articles', JSON.stringify(state));
+    const state = buildWorkspaceState();
+    persistWorkspaceLocal(state);
     // Debounced sync to Supabase
     if (workspaceSyncTimeout) clearTimeout(workspaceSyncTimeout);
     workspaceSyncTimeout = setTimeout(() => {
@@ -184,6 +479,7 @@ function switchStep(stepNumber) {
         renderImagesView();
     } else if (stepNumber == 4) {
         renderInspirationalView();
+        loadInspirationalLibrary();
     } else if (stepNumber == 5) {
         renderEditorView();
     } else if (stepNumber == 6) {
@@ -219,30 +515,57 @@ window.renderImagesView = () => {
     const list = document.getElementById('images-list');
     list.innerHTML = '';
 
-    const relevantArticles = articles.filter(a => (a.categories && a.categories.length > 0) || a.status === 'COOL FINDS' || a.status === 'M');
+    const sortSelect = document.getElementById('image-sort-order');
+    if (sortSelect) {
+        sortSelect.value = imageViewSortOrder;
+    }
+
+    const relevantArticles = articles
+        .filter(a => a.selected !== false && ((a.categories && a.categories.length > 0) || a.status === 'COOL FINDS' || a.status === 'M'))
+        .slice();
+
+    if (imageViewSortOrder === 'az' || imageViewSortOrder === 'za') {
+        const direction = imageViewSortOrder === 'za' ? -1 : 1;
+        relevantArticles.sort((a, b) => {
+            const titleA = String(a.title || '').trim().toLowerCase();
+            const titleB = String(b.title || '').trim().toLowerCase();
+            return titleA.localeCompare(titleB) * direction;
+        });
+    } else if (imageViewSortOrder === 'oldnew' || imageViewSortOrder === 'newold') {
+        const direction = imageViewSortOrder === 'newold' ? -1 : 1;
+        relevantArticles.sort((a, b) => {
+            const timeA = a.addedAt ? new Date(a.addedAt).getTime() : 0;
+            const timeB = b.addedAt ? new Date(b.addedAt).getTime() : 0;
+            if (timeA !== timeB) return (timeA - timeB) * direction;
+            return String(a.title || '').localeCompare(String(b.title || ''));
+        });
+    }
 
     if (relevantArticles.length === 0) {
-        list.innerHTML = '<div class="px-[30px] py-[30px] text-center text-gray-500">No articles with categories. Go back to Article View and assign categories first.</div>';
+        list.innerHTML = '<div style="padding: 30px; text-align: center; color: #777;">No selected articles are ready for Image View yet. Check the articles you want in Article View and assign categories first.</div>';
         return;
     }
 
     // Table header
     list.innerHTML = `
         <div class="img-table-header">
-            <div class="img-col-select flex flex-col items-center gap-0.5">
-                <span class="text-[0.75rem]">Publish</span>
-                <span class="text-[0.65rem] cursor-pointer underline" onclick="toggleAllImagePublish(true)">All</span>
-                <span class="text-[0.65rem] cursor-pointer underline" onclick="toggleAllImagePublish(false)">None</span>
+            <div class="img-col-select img-header-select">
+                <div class="header-label">Publish</div>
+                <div class="header-inline-actions">
+                    <button type="button" class="header-link-btn" onclick="toggleAllImagePublish(true)">All</button>
+                    <span>/</span>
+                    <button type="button" class="header-link-btn" onclick="toggleAllImagePublish(false)">None</button>
+                </div>
             </div>
-            <div class="img-col-article">Article</div>
-            <div class="img-col-cat">MED</div>
-            <div class="img-col-cat">THC</div>
-            <div class="img-col-cat">CBD</div>
-            <div class="img-col-cat">INV</div>
-            <div class="img-col-search">Image Search</div>
-            <div class="img-col-selected">Selected</div>
-            <div class="img-col-results">Results</div>
-            <div class="img-col-actions">Actions</div>
+            <div class="img-col-article"><div class="header-label">Article</div></div>
+            <div class="img-col-cat"><div class="header-label">MED</div></div>
+            <div class="img-col-cat"><div class="header-label">THC</div></div>
+            <div class="img-col-cat"><div class="header-label">CBD</div></div>
+            <div class="img-col-cat"><div class="header-label">INV</div></div>
+            <div class="img-col-search"><div class="header-label">Image Search</div></div>
+            <div class="img-col-selected"><div class="header-label">Selected</div></div>
+            <div class="img-col-results"><div class="header-label">Results</div></div>
+            <div class="img-col-actions"><div class="header-label">Actions</div></div>
         </div>
     `;
 
@@ -256,10 +579,10 @@ window.renderImagesView = () => {
 
         const selectedImageHtml = article.image
             ? `<div class="selected-image-container">
-                 <img src="${article.image}" class="img-fluid max-h-[120px]" onerror="this.onerror=null;this.src='${article.originalImageUrl || ''}';this.parentElement.classList.add('img-fallback');">
-                 <button class="btn-remove-image" onclick="removeImage(${originalIndex})">×</button>
-                 ${article.image.includes('purablis.com') ? '<span class="badge-published" title="Published">P</span>' : ''}
-               </div>`
+                    <img src="${article.image}" class="img-fluid" style="max-height: 120px;" onerror="this.onerror=null;this.src='${article.originalImageUrl || ''}';this.parentElement.classList.add('img-fallback');">
+                    <button class="btn-remove-image" onclick="removeImage(${originalIndex})">×</button>
+                    ${article.image.includes('purablis.com') ? '<span class="badge-published" title="Published">P</span>' : ''}
+                </div>`
             : `<div class="no-image-placeholder">No Image</div>`;
 
         const gridId = `grid-${originalIndex}`;
@@ -269,7 +592,7 @@ window.renderImagesView = () => {
             return `<div class="img-col-cat">
                 <input type="text" value="${rank}"
                     oninput="updateCategoryRank(${originalIndex}, '${cat}', this.value)"
-                    class="w-full text-center py-[4px] px-[1px] border border-gray-300 rounded-[4px] text-[0.8rem] box-border">
+                    style="width: 100%; text-align: center; padding: 4px 1px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8rem; box-sizing: border-box;">
             </div>`;
         }).join('');
 
@@ -277,28 +600,29 @@ window.renderImagesView = () => {
 
         const rowHtml = `
             <div class="img-table-row">
-                <div class="img-col-select flex items-center justify-center pt-[8px]">
+                <div class="img-col-select" style="display:flex;align-items:center;justify-content:center;padding-top:8px;">
                     <input type="checkbox" ${article.publishImage ? 'checked' : ''} onchange="updateArticleField(${originalIndex}, 'publishImage', this.checked)">
                 </div>
                 <div class="img-col-article">
-                    <textarea class="title-edit text-sm" rows="2"
+                    <textarea class="title-edit" rows="2"
                         onchange="updateArticleField(${originalIndex}, 'title', this.value)"
-                        style="font-family: inherit;"
+                        style="font-family: inherit; font-size: 0.9rem;"
                     >${article.title}</textarea>
                     <a href="${article.url}" target="_blank" class="article-link-sm">${article.url}</a>
                 </div>
                 ${catInputs}
                 <div class="img-col-search">
-                    <div class="flex gap-1.25 mb-[8px]">
-                        <input type="text" class="form-control px-[8px] py-1.25 text-[0.85rem]"
+                    <div style="display: flex; gap: 5px; margin-bottom: 8px;">
+                        <input type="text" class="form-control"
                             id="img-search-input-${originalIndex}"
                             value="${article.imageSearchQuery}"
-                            placeholder="Keyword...">
-                        <button class="btn btn-sm btn-primary whitespace-nowrap" onclick="searchArticleImages(${originalIndex})">Search</button>
+                            placeholder="Keyword..."
+                            style="padding: 5px 8px; font-size: 0.85rem;">
+                        <button class="btn btn-sm btn-primary" onclick="searchArticleImages(${originalIndex})" style="white-space: nowrap;">Search</button>
                     </div>
-                    <div class="border-t border-gray-200 pt-1.5">
-                        <input type="file" accept="image/*" id="img-upload-input-${originalIndex}" class="hidden" onchange="uploadArticleImage(${originalIndex}, this)">
-                        <label for="img-upload-input-${originalIndex}" class="btn btn-sm btn-secondary cursor-pointer m-0 text-[0.78rem] py-[4px] px-2.5">Upload File</label>
+                    <div style="border-top: 1px solid #eee; padding-top: 6px;">
+                        <input type="file" accept="image/*" id="img-upload-input-${originalIndex}" style="display: none;" onchange="uploadArticleImage(${originalIndex}, this)">
+                        <label for="img-upload-input-${originalIndex}" class="btn btn-sm btn-secondary" style="cursor: pointer; margin: 0; font-size: 0.78rem; padding: 4px 10px;">Upload File</label>
                     </div>
                 </div>
                 <div class="img-col-selected" id="selected-img-${originalIndex}">
@@ -306,12 +630,12 @@ window.renderImagesView = () => {
                 </div>
                 <div class="img-col-results">
                     <div id="${gridId}" class="mini-grid">
-                        <span class="text-muted text-[0.8rem]">Click Search</span>
+                        <span class="text-muted" style="font-size: 0.8rem;">Click Search</span>
                     </div>
                 </div>
                 <div class="img-col-actions">
-                    <button class="btn btn-sm btn-outline text-orange-600 border-orange-600 mb-1.25 w-full" onclick="archiveArticle(${originalIndex})">Archive</button>
-                    <button class="btn btn-sm btn-outline text-red-600 border-red-600 w-full" onclick="removeArticle(${originalIndex})">Remove</button>
+                    <button class="btn btn-sm btn-outline" style="color: #f57c00; border-color: #f57c00; margin-bottom: 5px; width: 100%;" onclick="archiveArticle(${originalIndex})">Archive</button>
+                    <button class="btn btn-sm btn-outline" style="color: #d32f2f; border-color: #d32f2f; width: 100%;" onclick="removeArticle(${originalIndex})">Remove</button>
                 </div>
             </div>
         `;
@@ -324,35 +648,29 @@ window.renderImagesView = () => {
 function updateImageViewStats() {
     const statsEl = document.getElementById('image-view-stats');
     if (!statsEl) return;
-    const relevantArticles = articles.filter(a => (a.categories && a.categories.length > 0) || a.status === 'COOL FINDS' || a.status === 'M');
-    const counts = { MED: 0, THC: 0, CBD: 0, INV: 0 };
-    let validStatusCount = 0;
-    const validStatuses = ['Y', 'YM', 'COOL FINDS'];
+    const relevantArticles = articles.filter(a => a.selected !== false && ((a.categories && a.categories.length > 0) || a.status === 'COOL FINDS' || a.status === 'M'));
+    const counts = getSelectedRankCounts();
+    let selectedCount = 0;
     relevantArticles.forEach(a => {
-        if (validStatuses.includes(a.status)) validStatusCount++;
-        if (a.ranks) {
-            ['MED', 'THC', 'CBD', 'INV'].forEach(cat => {
-                if (a.ranks[cat]) counts[cat]++;
-            });
-        }
+        if (a.publishImage !== false) selectedCount++;
     });
     const sessionLabel = currentSessionName
-        ? `<span class="stat-item bg-indigo-100 text-indigo-800 font-semibold">${currentSessionName}</span>`
+        ? `<span class="stat-item" style="background:#e8eaf6; color:#283593; font-weight:600;">${currentSessionName}</span>`
         : '';
 
     const count = relevantArticles.length;
     const countStyle = count === 25
-        ? 'bg-green-100 text-green-900 font-bold border-2 border-green-500'
-        : 'bg-red-100 text-red-900 font-bold border-2 border-red-300';
+        ? 'background:#e8f5e9; color:#1b5e20; font-weight: bold; border: 2px solid #4caf50;'
+        : 'background:#ffebee; color:#c62828; font-weight: bold; border: 2px solid #e57373;';
 
     statsEl.innerHTML = `
         ${sessionLabel}
-        <span class="stat-item ${countStyle}" title="Target is 25 articles">Total: ${count} / 25</span>
-        <span class="stat-item bg-cyan-100 text-cyan-900">Selected: ${validStatusCount}</span>
-        <span class="stat-item bg-blue-100 text-blue-900">MED: ${counts.MED}</span>
-        <span class="stat-item bg-green-100 text-green-900">THC: ${counts.THC}</span>
-        <span class="stat-item bg-amber-100 text-amber-900">CBD: ${counts.CBD}</span>
-        <span class="stat-item bg-purple-100 text-purple-900">INV: ${counts.INV}</span>
+        <span class="stat-item" style="${countStyle}" title="Target is 25 articles">Total: ${count} / 25</span>
+        <span class="stat-item" style="background:#e0f7fa; color:#006064;" title="Articles currently selected for Image View">Selected: ${selectedCount}</span>
+        <span class="stat-item" style="background:#e3f2fd; color:#0d47a1;">MED: ${counts.MED}</span>
+        <span class="stat-item" style="background:#e8f5e9; color:#1b5e20;">THC: ${counts.THC}</span>
+        <span class="stat-item" style="background:#fff3e0; color:#e65100;">CBD: ${counts.CBD}</span>
+        <span class="stat-item" style="background:#f3e5f5; color:#4a148c;">INV: ${counts.INV}</span>
     `;
 }
 
@@ -397,7 +715,7 @@ window.searchArticleImages = async (index) => {
             const currentPage = article.imagePage || 1;
             navDiv.innerHTML = `
                 <button class="btn btn-sm btn-outline" ${currentPage <= 1 ? 'disabled' : ''} onclick="changeImagePage(${index}, -1)" title="Previous">&larr;</button>
-                <span class="text-[0.8rem] text-gray-600">Page ${currentPage}</span>
+                <span style="font-size:0.8rem; color:#555;">Page ${currentPage}</span>
                 <button class="btn btn-sm btn-outline" onclick="changeImagePage(${index}, 1)" title="Next">&rarr;</button>
             `;
             grid.appendChild(navDiv);
@@ -407,6 +725,47 @@ window.searchArticleImages = async (index) => {
     } catch (e) {
         console.error(e);
         grid.innerHTML = '<div class="grid-placeholder">Error searching.</div>';
+    }
+};
+
+window.searchAllArticleImages = async () => {
+    const relevantIndexes = articles
+        .map((article, index) => ({ article, index }))
+        .filter(({ article }) => (article.categories && article.categories.length > 0) || article.status === 'COOL FINDS' || article.status === 'M')
+        .map(({ index }) => index);
+
+    if (relevantIndexes.length === 0) {
+        return alert('No articles available in Image View.');
+    }
+
+    const btn = document.querySelector('[onclick="searchAllArticleImages()"]');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = `Searching 0/${relevantIndexes.length}...`;
+    }
+
+    let searched = 0;
+
+    try {
+        for (const index of relevantIndexes) {
+            const article = articles[index];
+            if (!article.imageSearchQuery) {
+                const words = (article.title || '').split(' ').filter(w => w.length > 3);
+                article.imageSearchQuery = words.slice(0, 2).join(' ');
+            }
+
+            await searchArticleImages(index);
+            searched++;
+
+            if (btn) {
+                btn.textContent = `Searching ${searched}/${relevantIndexes.length}...`;
+            }
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Search All';
+        }
     }
 };
 
@@ -429,8 +788,8 @@ window.selectImage = (index, url) => {
     if (box) {
         box.innerHTML = `
             <div class="selected-image-container">
-                 <img src="${url}" class="img-fluid max-h-[150px]" onerror="this.onerror=null;this.src='${articles[index].originalImageUrl || ''}';this.parentElement.classList.add('img-fallback');">
-                 <button class="btn-remove-image" onclick="removeImage(${index})">×</button>
+                    <img src="${url}" class="img-fluid" style="max-height: 150px;" onerror="this.onerror=null;this.src='${articles[index].originalImageUrl || ''}';this.parentElement.classList.add('img-fallback');">
+                    <button class="btn-remove-image" onclick="removeImage(${index})">×</button>
             </div>`;
     }
 };
@@ -499,6 +858,30 @@ window.uploadArticleImage = async (index, input) => {
 
 // --- STEP 4: INSPIRATIONAL IMAGES ---
 
+async function loadInspirationalLibrary() {
+    const grid = document.getElementById('insp-gallery-grid');
+    if (grid && inspirationalLibraryImages.length === 0) {
+        grid.innerHTML = '<div class="grid-placeholder">Loading uploaded images...</div>';
+    }
+
+    try {
+        const res = await fetch('/api/images/inspirational-library');
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+            throw new Error(data.error || 'Failed to load uploaded images');
+        }
+        inspirationalLibraryImages = data.images || [];
+        localStorage.setItem(INSPIRATIONAL_LIBRARY_CACHE_KEY, JSON.stringify(inspirationalLibraryImages));
+    } catch (e) {
+        console.error(e);
+        if (grid && inspirationalLibraryImages.length === 0) {
+            grid.innerHTML = '<div class="grid-placeholder">Could not load uploaded images.</div>';
+        }
+    }
+
+    renderInspirationalView();
+}
+
 window.searchInspirational = async () => {
     const query = document.getElementById('insp-search-query').value;
     if (!query) return alert('Please enter a search term');
@@ -546,7 +929,7 @@ window.uploadInspirationalImage = async () => {
 
     btn.textContent = 'Uploading...';
     btn.disabled = true;
-    if (status) status.textContent = 'Uploading to server and publishing...';
+    if (status) status.textContent = 'Uploading image to Supabase Storage...';
 
     const formData = new FormData();
     formData.append('image', input.files[0]);
@@ -556,101 +939,289 @@ window.uploadInspirationalImage = async () => {
             method: 'POST',
             body: formData
         });
-        const data = await res.json();
+        const data = await parseJsonResponse(res, 'Upload route did not return JSON. Restart the app server and try again.');
         if (data.success && data.url) {
-            inspirationalImages.push(data.url);
+            if (!isPublicHostedUrl(data.url)) {
+                throw new Error('Upload did not return a public Supabase URL.');
+            }
+            inspirationalImages = [data.url];
+            confirmationInspirationalImage = data.url;
             saveState();
+            await loadInspirationalLibrary();
             renderInspirationalView();
-            const pubMsg = data.published ? ' (published to GoDaddy)' : ' (local only — FTP not configured)';
-            if (status) status.textContent = 'Uploaded' + pubMsg;
-            if (data.ftpError && status) status.textContent += ' FTP error: ' + data.ftpError;
+            if (status) status.textContent = 'Uploaded to Supabase Storage and selected for the newsletter.';
         } else {
             alert('Upload failed: ' + (data.error || 'Unknown error'));
             if (status) status.textContent = 'Upload failed.';
         }
     } catch (e) {
         console.error(e);
-        alert('Upload failed. See console.');
-        if (status) status.textContent = 'Upload failed.';
+        alert('Upload failed: ' + (e.message || 'Unknown error'));
+        if (status) status.textContent = 'Upload failed: ' + (e.message || 'Unknown error');
     } finally {
-        btn.textContent = 'Upload';
+        btn.textContent = 'Upload to Supabase';
         btn.disabled = false;
         input.value = '';
     }
 };
 
-window.addInspirationalUrl = () => {
+window.addInspirationalUrl = async () => {
     const input = document.getElementById('insp-url-input');
+    const btn = document.getElementById('btn-insp-url-upload');
     const status = document.getElementById('insp-upload-status');
+    const url = input ? input.value.trim() : '';
+    if (!url) return alert('Paste an image URL first.');
 
-    if (!input || !input.value.trim()) {
-        return alert('Please enter an image URL.');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Uploading...';
     }
+    if (status) status.textContent = 'Fetching the pasted image and uploading it to Supabase Storage...';
 
-    const url = input.value.trim();
-
-    // Basic URL validation
     try {
-        new URL(url);
+        const res = await fetch('/api/images/publish-inspirational-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        });
+        const data = await parseJsonResponse(res, 'URL upload route did not return JSON. Restart the app server and try again.');
+        if (!res.ok || !data.success || !data.url) {
+            throw new Error(data.error || 'Failed to upload image URL to Supabase');
+        }
+        if (!isPublicHostedUrl(data.url)) {
+            throw new Error('Upload did not return a public Supabase URL.');
+        }
+
+        inspirationalImages = [data.url];
+        confirmationInspirationalImage = data.url;
+        saveState();
+        await loadInspirationalLibrary();
+        renderInspirationalView();
+
+        if (input) input.value = '';
+        if (status) status.textContent = 'Uploaded to Supabase Storage and selected for the newsletter.';
     } catch (e) {
-        return alert('Invalid URL. Please enter a valid HTTP/HTTPS URL.');
+        console.error(e);
+        if (status) status.textContent = 'Upload failed: ' + (e.message || 'Unknown error');
+        alert('Failed to upload image URL: ' + (e.message || 'Unknown error'));
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Upload URL';
+        }
     }
-
-    inspirationalImages.push(url);
-    saveState();
-    renderInspirationalView();
-
-    if (status) status.textContent = 'Image URL added successfully.';
-    input.value = '';
-
-    // Clear status message after 3 seconds
-    setTimeout(() => {
-        if (status) status.textContent = '';
-    }, 3000);
 };
 
 window.selectInspirationalImage = (url) => {
-    inspirationalImages.push(url);
+    if (!isPublicHostedUrl(url)) {
+        alert('Please select an inspirational image with a public Supabase URL.');
+        return;
+    }
+    inspirationalImages = [url];
+    confirmationInspirationalImage = url;
     saveState();
     renderInspirationalView();
 };
 
 window.removeInspirationalImage = (index) => {
     inspirationalImages.splice(index, 1);
+    if (!inspirationalImages.length) {
+        confirmationInspirationalImage = '';
+    } else if (!inspirationalImages.includes(confirmationInspirationalImage)) {
+        confirmationInspirationalImage = inspirationalImages[0];
+    }
     saveState();
     renderInspirationalView();
 };
 
+window.deleteInspirationalLibraryImage = async (url) => {
+    if (!confirm('Delete this uploaded inspirational image from the server library?')) return;
+
+    try {
+        const res = await fetch('/api/images/inspirational-library', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+            throw new Error(data.error || 'Delete failed');
+        }
+
+        inspirationalImages = inspirationalImages.filter(img => img !== url);
+        inspirationalLibraryImages = inspirationalLibraryImages.filter(img => img.url !== url);
+        localStorage.setItem(INSPIRATIONAL_LIBRARY_CACHE_KEY, JSON.stringify(inspirationalLibraryImages));
+        saveState();
+        await loadInspirationalLibrary();
+    } catch (e) {
+        console.error(e);
+        alert('Failed to delete uploaded image: ' + e.message);
+    }
+};
+
 function renderInspirationalView() {
+    const galleryGrid = document.getElementById('insp-gallery-grid');
     const selectedGrid = document.getElementById('selected-insp-grid');
-    if (!selectedGrid) return;
+    if (!galleryGrid || !selectedGrid) return;
+
+    galleryGrid.innerHTML = '';
+    if (inspirationalLibraryImages.length === 0) {
+        galleryGrid.innerHTML = '<div class="grid-placeholder">No uploaded inspirational images yet.</div>';
+    } else {
+        inspirationalLibraryImages.forEach(({ url, name }) => {
+            const div = document.createElement('div');
+            div.className = 'insp-library-card';
+
+            const imgEl = document.createElement('img');
+            imgEl.src = url;
+            imgEl.className = 'insp-library-preview';
+            imgEl.title = name || 'Uploaded image';
+            imgEl.onclick = () => selectInspirationalImage(url);
+
+            const previewWrap = document.createElement('div');
+            previewWrap.className = 'insp-library-preview-wrap';
+            previewWrap.appendChild(imgEl);
+
+            const meta = document.createElement('div');
+            meta.className = 'insp-library-meta';
+
+            const title = document.createElement('div');
+            title.className = 'insp-library-title';
+            title.textContent = name || 'Uploaded inspirational image';
+
+            const subtitle = document.createElement('div');
+            subtitle.className = 'insp-library-subtitle';
+            subtitle.textContent = 'Stored on server and available for newsletter use.';
+
+            const actions = document.createElement('div');
+            actions.className = 'insp-library-actions';
+
+            const selectBtn = document.createElement('button');
+            selectBtn.textContent = 'Select';
+            selectBtn.className = 'btn btn-primary btn-sm';
+            selectBtn.onclick = (e) => {
+                e.stopPropagation();
+                selectInspirationalImage(url);
+            };
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.className = 'btn btn-sm insp-delete-btn';
+            deleteBtn.onclick = (e) => {
+                e.stopPropagation();
+                deleteInspirationalLibraryImage(url);
+            };
+
+            actions.appendChild(selectBtn);
+            actions.appendChild(deleteBtn);
+            meta.appendChild(title);
+            meta.appendChild(subtitle);
+            meta.appendChild(actions);
+            div.appendChild(previewWrap);
+            div.appendChild(meta);
+            galleryGrid.appendChild(div);
+        });
+    }
 
     selectedGrid.innerHTML = '';
     if (inspirationalImages.length === 0) {
         selectedGrid.innerHTML = '<div class="grid-placeholder">No images selected.</div>';
-        return;
+    } else {
+        inspirationalImages.forEach((url, index) => {
+            const div = document.createElement('div');
+            div.className = 'insp-selected-card';
+
+            const imgEl = document.createElement('img');
+            imgEl.src = url;
+            imgEl.className = 'insp-selected-preview';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.innerHTML = '&times;';
+            removeBtn.className = 'insp-selected-remove';
+            removeBtn.onclick = () => removeInspirationalImage(index);
+
+            const caption = document.createElement('div');
+            caption.className = 'insp-selected-caption';
+            caption.textContent = 'Selected for Confirmation and final newsletter';
+
+            div.appendChild(imgEl);
+            div.appendChild(removeBtn);
+            div.appendChild(caption);
+            selectedGrid.appendChild(div);
+        });
     }
-
-    inspirationalImages.forEach((url, index) => {
-        const div = document.createElement('div');
-        div.className = 'relative';
-
-        const imgEl = document.createElement('img');
-        imgEl.src = url;
-        imgEl.className = 'thumbnail-img';
-
-        const removeBtn = document.createElement('button');
-        removeBtn.innerHTML = '&times;';
-        removeBtn.className = 'absolute top-1.25 right-1.25 bg-red-600 text-white border-0 rounded-full w-5 h-5 cursor-pointer';
-        removeBtn.onclick = () => removeInspirationalImage(index);
-
-        div.appendChild(imgEl);
-        div.appendChild(removeBtn);
-        selectedGrid.appendChild(div);
-    });
 }
 
 // --- STEP 5: TEXT EDITOR ---
+
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function buildCategoryPrompt(category) {
+    const categoryArticles = getSummaryArticlesForCategory(category);
+    if (categoryArticles.length === 0) {
+        return `CATEGORY: ${category}\nNo priority-ranked articles (1-4) currently selected for this category.`;
+    }
+
+    const articleLines = categoryArticles.map((article, index) => {
+        const title = article.title || 'Untitled';
+        const url = article.url || '';
+        return `${index + 1}. ${title}\n${url}`;
+    }).join('\n\n');
+
+    return [
+        `CATEGORY: ${category}`,
+        'Use only the priority-ranked article links below as the source set for this category summary.',
+        'Create a strong 6-7 line newsletter-ready summary for this category.',
+        '',
+        articleLines
+    ].join('\n');
+}
+
+function mergePromptWithCategoryLinks(existingPrompt, category) {
+    const promptBlock = buildCategoryPrompt(category);
+    const startMarker = `[[AUTO_CATEGORY_LINKS_${category}_START]]`;
+    const endMarker = `[[AUTO_CATEGORY_LINKS_${category}_END]]`;
+    const wrappedBlock = `${startMarker}\n${promptBlock}\n${endMarker}`;
+    const current = String(existingPrompt || '').trim();
+    const markerPattern = new RegExp(`${startMarker}[\\s\\S]*?${endMarker}`, 'm');
+    const brokenBlockPattern = new RegExp(`\\[\\[AUTO_CATEGORY_LINKS_${category}_[\\s\\S]*?(?=\\nhttps?:\\/\\/|\\n[A-Za-z0-9].*https?:\\/\\/|$)`, 'g');
+    const cleaned = current
+        .replace(markerPattern, '')
+        .replace(brokenBlockPattern, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+
+    if (!cleaned) {
+        return wrappedBlock;
+    }
+    return `${wrappedBlock}\n\n${cleaned}`;
+}
+
+window.syncCategoryPrompt = (category) => {
+    const content = newsletterContent[category] || (newsletterContent[category] = { intro: '', outro: '' });
+    const mergedPrompt = mergePromptWithCategoryLinks('', category);
+    content.prompt = mergedPrompt;
+
+    const promptEl = document.getElementById('editor-prompt');
+    if (promptEl && currentEditorTab === category) {
+        promptEl.value = mergedPrompt;
+    }
+    saveState();
+};
+
+function getSelectedCategoryResults() {
+    if (!newsletterContent.selectedResults) {
+        newsletterContent.selectedResults = { MED: '', THC: '', CBD: '', INV: '' };
+    }
+    return newsletterContent.selectedResults;
+}
 
 window.switchEditorTab = (category) => {
     currentEditorTab = category;
@@ -670,46 +1241,64 @@ window.renderEditorContent = () => {
     if (!container) return;
 
     const content = newsletterContent[currentEditorTab];
-    let promptValue = content.prompt || '';
+    const promptValue = mergePromptWithCategoryLinks(content.prompt || '', currentEditorTab);
+    if (content.prompt !== promptValue) {
+        content.prompt = promptValue;
+        saveState();
+    }
 
-    const summaryRulesValue = newsletterContent.summaryRules || '';
+    const summaryRulesValue = normalizeSummaryRules(newsletterContent.summaryRules);
     const resultValue = content.result || '';
     const templateValue = (newsletterContent.templates && newsletterContent.templates[currentEditorTab]) || '';
+    const selectedGreeting = newsletterContent.selectedGreeting || DEFAULT_GREETING;
+    const greetingOptionsHtml = GREETING_OPTIONS.map(greeting => `
+        <option value="${escapeHtml(greeting)}" ${greeting === selectedGreeting ? 'selected' : ''}>${escapeHtml(greeting)}</option>
+    `).join('');
+    const selectedResults = getSelectedCategoryResults();
+    const selectedSummaryHtml = ['MED', 'THC', 'CBD', 'INV'].map(cat => {
+        const selectedText = selectedResults[cat] || '';
+        return `
+            <div style="padding: 12px; border: 1px solid #e0e0e0; border-radius: 8px; background: #fafafa;">
+                <div style="font-weight: 700; margin-bottom: 8px;">${cat}</div>
+                <textarea rows="5" class="form-control" style="font-size: 0.85rem; background: #fff;" oninput="updateSelectedCategoryResult('${cat}', this.value)" placeholder="No selected ${cat} content yet...">${selectedText}</textarea>
+            </div>
+        `;
+    }).join('');
 
     container.innerHTML = `
-        <div class="form-group p-3 bg-gray-50 rounded-lg border border-gray-200 mb-5">
-            <label class="font-semibold">Template for ${currentEditorTab}</label>
-            <p class="text-muted text-[0.8rem] mb-2.5">HTML template for this newsletter. Use {{SUMMARY}}, {{ARTICLES_HTML}}, {{INSPIRATIONAL_IMAGE}}, {{NEWSLETTER_NAME}} as placeholders.</p>
-            <div class="flex flex-wrap gap-3 items-center mb-2.5">
-                <input type="file" id="template-single-input" accept=".html,.htm" class="text-[0.85rem]">
+        <div class="form-group" style="padding: 12px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef; margin-bottom: 20px;">
+            <label style="font-weight: 600;">Template for ${currentEditorTab}</label>
+            <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 10px;">HTML template for this newsletter. Use {{SUMMARY}}, {{ARTICLES_HTML}}, {{INSPIRATIONAL_IMAGE}}, {{NEWSLETTER_NAME}} as placeholders.</p>
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 10px;">
+                <input type="file" id="template-single-input" accept=".html,.htm" style="font-size: 0.85rem;">
                 <button class="btn btn-secondary btn-sm" onclick="uploadSingleTemplate()">Upload 1 (for ${currentEditorTab})</button>
-                <span class="text-gray-400">or</span>
-                <input type="file" id="template-batch-input" accept=".html,.htm" multiple class="text-[0.85rem]">
+                <span style="color: #999;">or</span>
+                <input type="file" id="template-batch-input" accept=".html,.htm" multiple style="font-size: 0.85rem;">
                 <button class="btn btn-secondary btn-sm" onclick="uploadAllTemplates()">Upload all 4</button>
             </div>
-            <div id="template-status" class="text-[0.8rem] text-gray-500 mb-2"></div>
-            <textarea id="editor-template" rows="6" class="form-control font-mono text-[0.8rem] bg-white" oninput="updateTemplate('${currentEditorTab}', this.value)" placeholder="Paste or edit HTML template here..."></textarea>
+            <div id="template-status" style="font-size: 0.8rem; color: #666; margin-bottom: 8px;"></div>
+            <textarea id="editor-template" rows="6" class="form-control" style="font-family: monospace; font-size: 0.8rem; background: #fff;" oninput="updateTemplate('${currentEditorTab}', this.value)" placeholder="Paste or edit HTML template here..."></textarea>
         </div>
 
-        <div class="grid grid-cols-[1fr_300px] gap-5 items-start">
+        <div style="display: grid; grid-template-columns: 1fr 300px; gap: 20px; align-items: start;">
             <div>
                 <div class="form-group">
-                    <label class="font-semibold">Prompt</label>
-                    <textarea id="editor-prompt" rows="8" class="form-control font-mono text-[0.9rem] mt-2.5" oninput="updateNewsletterContent('${currentEditorTab}', 'prompt', this.value)">${promptValue}</textarea>
+                    <label style="font-weight: 600;">Prompt</label>
+                    <textarea id="editor-prompt" rows="8" class="form-control" style="font-family: monospace; font-size: 0.9rem;" oninput="updateNewsletterContent('${currentEditorTab}', 'prompt', this.value)">${promptValue}</textarea>
                 </div>
 
-                <div class="flex items-center gap-2.5 my-[5px] mb-3.75">
-                    <input type="text" id="bring-articles-input" placeholder="e.g. 1,2,3" class="w-[120px] px-2.5 py-1.5 border border-gray-300 rounded-[4px] text-[0.9rem]">
-                    <button class="btn btn-secondary btn-sm" onclick="bringArticlesToPrompt('${currentEditorTab}')">Bring Articles</button>
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <button class="btn btn-secondary btn-sm" onclick="syncCategoryPrompt('${currentEditorTab}')">Refresh Category Links</button>
+                    <span style="font-size: 0.8rem; color: #777;">The prompt auto-loads all article links for ${currentEditorTab}.</span>
                 </div>
 
-                <div class="flex items-center gap-3.75 mb-5 justify-between flex-wrap">
-                    <div class="flex items-center gap-3.75">
-                        <label class="flex items-center gap-1.25 cursor-pointer text-[0.9rem]">
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; justify-content: space-between; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 0.9rem;">
                             <input type="radio" id="rules-on-${currentEditorTab}" name="useRulesGroup-${currentEditorTab}" ${content.useRules !== false ? 'checked' : ''} onchange="updateNewsletterContent('${currentEditorTab}', 'useRules', true)">
                             Use Summary Rules
                         </label>
-                        <label class="flex items-center gap-1.25 cursor-pointer text-[0.9rem]">
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 0.9rem;">
                             <input type="radio" id="rules-off-${currentEditorTab}" name="useRulesGroup-${currentEditorTab}" ${content.useRules === false ? 'checked' : ''} onchange="updateNewsletterContent('${currentEditorTab}', 'useRules', false)">
                             Custom (No Rules)
                         </label>
@@ -720,60 +1309,65 @@ window.renderEditorContent = () => {
                 </div>
             </div>
 
-            <div>
-                <div id="editor-articles-list" class="mb-3.75 text-[0.85rem]"></div>
-                <div class="form-group">
-                    <label class="font-semibold">Summary Rules</label>
-                    <textarea id="editor-summary-rules" rows="14" class="form-control text-[0.85rem] bg-yellow-50 border-yellow-400" oninput="updateSummaryRules(this.value)" placeholder="Persistent rules sent as system instructions to the AI...">${summaryRulesValue}</textarea>
-                    <div class="text-[0.7rem] text-gray-400 mt-1">These rules persist across saves and categories.</div>
-                </div>
+        </div>
+
+        <div>
+            <div id="editor-articles-list" style="margin-bottom: 15px; font-size: 0.85rem;"></div>
+            <div class="form-group">
+                <label style="font-weight: 600;">Summary Rules</label>
+                <textarea id="editor-summary-rules" rows="14" class="form-control" style="font-size: 0.85rem; background: #fffde7; border-color: #fbc02d;" oninput="updateSummaryRules(this.value)" placeholder="Persistent rules sent as system instructions to the AI...">${summaryRulesValue}</textarea>
+                <div style="font-size: 0.7rem; color: #999; margin-top: 4px;">These rules persist across saves and categories.</div>
             </div>
         </div>
 
-        <div class="form-group mt-2.5">
-            <label class="font-semibold">Created Result</label>
-            <textarea id="editor-result" rows="10" class="form-control text-[0.9rem] bg-gray-100 mt-2.5" oninput="updateNewsletterContent('${currentEditorTab}', 'result', this.value)" placeholder="The AI-generated result will appear here...">${resultValue}</textarea>
+        <div class="form-group" style="margin-top: 10px;">
+            <label style="font-weight: 600;">Created Result</label>
+            <textarea id="editor-result" rows="10" class="form-control" style="font-size: 0.9rem; background: #f5f5f5;" oninput="updateNewsletterContent('${currentEditorTab}', 'result', this.value)" placeholder="The AI-generated result will appear here...">${resultValue}</textarea>
         </div>
 
-        <div class="flex justify-end gap-2.5 mt-3.75">
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
+            <button class="btn btn-primary btn-sm" onclick="selectGeneratedContent('${currentEditorTab}')">Select ${currentEditorTab}</button>
             <button class="btn btn-outline btn-sm" onclick="copyEditorContent('${currentEditorTab}')">Copy ${currentEditorTab} Content</button>
+        </div>
+
+        <div style="margin-top: 24px; padding-top: 18px; border-top: 1px solid #e5e7eb;">
+            <label style="font-weight: 700; display: block; margin-bottom: 12px;">Selected Content</label>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;">
+                ${selectedSummaryHtml}
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; padding-top: 18px; border-top: 1px solid #e5e7eb;">
+            <label style="font-weight: 700; display: block; margin-bottom: 10px;">Greetings Selection</label>
+            <select class="form-control" style="max-width: 520px;" onchange="updateSelectedGreeting(this.value)">
+                ${greetingOptionsHtml}
+            </select>
+            <div style="font-size: 0.8rem; color: #666; margin-top: 8px;">This changes only the greeting line. The sign-off name stays as Jessica.</div>
         </div>
     `;
     const templateEl = document.getElementById('editor-template');
     if (templateEl) templateEl.value = templateValue || '';
     const listEl = document.getElementById('editor-articles-list');
-    if (listEl && typeof getArticlesForCategory === 'function') {
-        const catArticles = getArticlesForCategory(currentEditorTab);
+    if (listEl && typeof getSummaryArticlesForCategory === 'function') {
+        const catArticles = getSummaryArticlesForCategory(currentEditorTab);
         const listHtml = catArticles.length
-            ? catArticles.map((a, i) => (i + 1) + '. ' + (a.title || 'Untitled').replace(/</g, '&lt;').substring(0, 48) + ((a.title || '').length > 48 ? '…' : '')).join('<br>')
-            : '<span class="text-muted">No articles with ' + currentEditorTab + ' rank.</span>';
-        listEl.innerHTML = '<label class="font-semibold">Articles for ' + currentEditorTab + '</label><div class="max-h-[200px] overflow-y-auto mt-1.5 leading-[1.4]">' + listHtml + '</div><div class="text-[0.7rem] text-gray-400 mt-1">Use numbers above in &quot;Bring Articles&quot; (e.g. 1,2,3).</div>';
-    }
-};
-
-window.bringArticlesToPrompt = (category) => {
-    const input = document.getElementById('bring-articles-input');
-    if (!input || !input.value.trim()) return alert('Enter article numbers separated by commas (e.g. 1,2,3).');
-    const nums = input.value.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n > 0);
-    if (nums.length === 0) return alert('Enter valid article numbers separated by commas (e.g. 1,2,3).');
-
-    const categoryArticles = getArticlesForCategory(category);
-
-    const selected = nums.map(n => categoryArticles[n - 1]).filter(Boolean);
-    if (selected.length === 0) return alert('No matching articles for those numbers. Use the numbered list for ' + category + ' (right side).');
-
-    const urls = selected.map(a => a.url).join('\n');
-
-    const promptEl = document.getElementById('editor-prompt');
-    if (promptEl) {
-        const existing = promptEl.value.trim();
-        promptEl.value = existing ? existing + '\n\n' + urls : urls;
-        updateNewsletterContent(category, 'prompt', promptEl.value);
+            ? catArticles.map((a, i) => {
+                const title = escapeHtml(a.title || 'Untitled');
+                const url = escapeHtml(a.url || '');
+                const date = escapeHtml(a.date || '');
+                return `<div style="padding: 8px 0; border-bottom: 1px solid #eee;">
+                    <div style="font-weight: 600;">${i + 1}. ${title}</div>
+                    ${date ? `<div style="font-size: 0.75rem; color: #777;">${date}</div>` : ''}
+                    ${url ? `<a href="${url}" target="_blank" style="font-size: 0.78rem; word-break: break-all;">${url}</a>` : '<span class="text-muted">No URL</span>'}
+                </div>`;
+            }).join('')
+            : '<span class="text-muted">No priority 1-4 articles for ' + currentEditorTab + '.</span>';
+        listEl.innerHTML = '<label style="font-weight: 600;">Summary Source Articles for ' + currentEditorTab + '</label><div style="max-height: 280px; overflow-y: auto; margin-top: 6px; line-height: 1.4;">' + listHtml + '</div><div style="font-size: 0.7rem; color: #999; margin-top: 4px;">Only articles marked 1, 2, 3, or 4 in Article View/Image View are used here for summary generation.</div>';
     }
 };
 
 window.updateSummaryRules = (value) => {
-    newsletterContent.summaryRules = value;
+    newsletterContent.summaryRules = value || DEFAULT_SUMMARY_RULES;
     saveState();
 };
 
@@ -839,10 +1433,12 @@ window.generateSummary = async (category) => {
     const prompt = document.getElementById('editor-prompt').value;
     const rulesOnEl = document.getElementById(`rules-on-${category}`);
     const isUseRules = rulesOnEl ? rulesOnEl.checked : true;
-    const summaryRules = isUseRules ? (newsletterContent.summaryRules || '') : '';
+    const summaryRules = isUseRules ? normalizeSummaryRules(newsletterContent.summaryRules) : '';
+    const categoryArticles = getSummaryArticlesForCategory(category);
     const btnText = document.getElementById(`gen-btn-text-${category}`);
 
     if (!prompt) return alert('Please enter a prompt.');
+    if (categoryArticles.length === 0) return alert(`No priority-ranked articles (1-4) found for ${category}.`);
 
     btnText.textContent = 'Generating...';
 
@@ -850,7 +1446,14 @@ window.generateSummary = async (category) => {
         const res = await fetch('/api/articles/summarize', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt, useRules: isUseRules, summaryRules, category })
+            body: JSON.stringify({
+                prompt,
+                useRules: isUseRules,
+                summaryRules,
+                category,
+                articles: categoryArticles,
+                model: document.getElementById('ai-model') ? document.getElementById('ai-model').value : ''
+            })
         });
         const data = await res.json();
 
@@ -883,6 +1486,31 @@ window.updateNewsletterContent = (category, field, value) => {
     saveState();
 };
 
+window.updateSelectedGreeting = (value) => {
+    newsletterContent.selectedGreeting = value || DEFAULT_GREETING;
+    saveState();
+};
+
+window.selectGeneratedContent = (category) => {
+    const resultEl = document.getElementById('editor-result');
+    const generatedText = resultEl ? resultEl.value.trim() : ((newsletterContent[category] && newsletterContent[category].result) || '').trim();
+
+    if (!generatedText) {
+        return alert(`No generated ${category} content to select yet.`);
+    }
+
+    const selectedResults = getSelectedCategoryResults();
+    selectedResults[category] = generatedText;
+    saveState();
+    renderEditorContent();
+};
+
+window.updateSelectedCategoryResult = (category, value) => {
+    const selectedResults = getSelectedCategoryResults();
+    selectedResults[category] = value;
+    saveState();
+};
+
 window.copyEditorContent = (category) => {
     const content = newsletterContent[category];
     const text = content.result || content.prompt || '';
@@ -906,42 +1534,68 @@ function renderConfirmationView() {
     const summary = document.getElementById('confirmation-summary');
     if (!summary) return;
 
-    // Calculate stats
-    const stats = { MED: 0, THC: 0, CBD: 0, INV: 0, COOL_FINDS: 0 };
-    articles.forEach(a => {
-        if (a.status === 'COOL FINDS') {
-            stats.COOL_FINDS++;
-        } else if (['Y', 'YM'].includes(a.status) && a.categories) {
-            a.categories.forEach(c => {
-                if (stats[c] !== undefined) stats[c]++;
-            });
-        }
-    });
+    const newsletterNameInput = document.getElementById('newsletter-name');
+    const activeNewsletterName = currentSessionName || (newsletterNameInput ? newsletterNameInput.value.trim() : '') || 'Newsletter';
+
+    // Calculate stats from the same category-selection logic used in the app
+    const stats = {
+        MED: getArticlesForCategory('MED').length,
+        THC: getArticlesForCategory('THC').length,
+        CBD: getArticlesForCategory('CBD').length,
+        INV: getArticlesForCategory('INV').length,
+        COOL_FINDS: articles.filter(a => a.status === 'COOL FINDS').length
+    };
+    const generatedSubjects = newsletterContent.generatedSubjects || { MED: '', THC: '', CBD: '', INV: '' };
+    const subjectPrompt = normalizeSubjectPrompt(newsletterContent.subjectPrompt);
 
     summary.innerHTML = `
         <h3>Newsletter Summary</h3>
-        <p><strong>Newsletter Name:</strong> ${document.getElementById('newsletter-name').value}</p>
+        <p><strong>Newsletter Name:</strong> ${activeNewsletterName}</p>
         <p><strong>Inspirational Images:</strong> ${inspirationalImages.length} selected</p>
-        <div class="grid grid-cols-5 gap-2.5 mt-3.75">
-            <div class="bg-blue-100 p-3.75 rounded-lg text-center">
-                <strong class="block text-[1.2rem] text-blue-900">MED</strong>
+        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 15px;">
+            <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
+                <strong style="display:block; font-size: 1.2rem; color: #0d47a1;">MED</strong>
                 <span>${stats.MED} Articles</span>
             </div>
-            <div class="bg-green-100 p-3.75 rounded-lg text-center">
-                <strong class="block text-[1.2rem] text-green-900">THC</strong>
+            <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; text-align: center;">
+                <strong style="display:block; font-size: 1.2rem; color: #1b5e20;">THC</strong>
                 <span>${stats.THC} Articles</span>
             </div>
-            <div class="bg-amber-100 p-3.75 rounded-lg text-center">
-                <strong class="block text-[1.2rem] text-amber-900">CBD</strong>
+            <div style="background: #fff3e0; padding: 15px; border-radius: 8px; text-align: center;">
+                <strong style="display:block; font-size: 1.2rem; color: #e65100;">CBD</strong>
                 <span>${stats.CBD} Articles</span>
             </div>
-            <div class="bg-purple-100 p-3.75 rounded-lg text-center">
-                <strong class="block text-[1.2rem] text-purple-900">INV</strong>
+            <div style="background: #f3e5f5; padding: 15px; border-radius: 8px; text-align: center;">
+                <strong style="display:block; font-size: 1.2rem; color: #4a148c;">INV</strong>
                 <span>${stats.INV} Articles</span>
             </div>
-            <div class="bg-cyan-100 p-3.75 rounded-lg text-center">
-                <strong class="block text-[1.2rem] text-cyan-900">COOL</strong>
+            <div style="background: #e0f7fa; padding: 15px; border-radius: 8px; text-align: center;">
+                <strong style="display:block; font-size: 1.2rem; color: #006064;">COOL</strong>
                 <span>${stats.COOL_FINDS} Finds</span>
+            </div>
+        </div>
+        <div style="margin-top: 22px; padding: 16px; border: 1px solid #e5e7eb; border-radius: 10px; background: #fafafa;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:12px;">
+                <div>
+                    <div style="font-size: 1rem; font-weight: 700; margin-bottom: 4px;">Subject Generator</div>
+                    <div style="font-size: 0.82rem; color:#666;">Uses the top 3 priority articles for each category and generates clicky email subjects with emojis.</div>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <button id="btn-generate-subjects" class="btn btn-primary btn-sm" onclick="generateAllSubjects()"><span id="btn-generate-subjects-text">Generate Subjects</span></button>
+                    <button class="btn btn-outline btn-sm" type="button" onclick="pushStateToServer()" title="Save the subject prompt and generated subjects to Supabase">Push To Server</button>
+                </div>
+            </div>
+            <textarea class="form-control" rows="3" style="margin-bottom: 12px; font-size: 0.9rem;" oninput="updateSubjectPrompt(this.value)">${escapeHtml(subjectPrompt)}</textarea>
+            <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+                ${['MED', 'THC', 'CBD', 'INV'].map((cat) => `
+                    <div style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px;">
+                            <strong>${cat}</strong>
+                            <button class="btn btn-outline btn-sm" onclick="copyGeneratedSubject('${cat}')">Copy</button>
+                        </div>
+                        <textarea class="form-control" rows="3" style="font-size: 0.88rem; background:#fff;" oninput="updateGeneratedSubject('${cat}', this.value)" placeholder="Generate a subject for ${cat}...">${escapeHtml(generatedSubjects[cat] || '')}</textarea>
+                    </div>
+                `).join('')}
             </div>
         </div>
     `;
@@ -949,7 +1603,491 @@ function renderConfirmationView() {
     const exportGenBtn = document.getElementById('btn-export-generated');
     if (uploadBtn) uploadBtn.disabled = !lastGeneratedNewsletter;
     if (exportGenBtn) exportGenBtn.disabled = !lastGeneratedNewsletter;
+    renderConfirmationPreviews();
 }
+
+function getActiveNewsletterName() {
+    const newsletterNameInput = document.getElementById('newsletter-name');
+    return currentSessionName || (newsletterNameInput ? newsletterNameInput.value.trim() : '') || 'Newsletter';
+}
+
+function getSelectedOrGeneratedSummary(category) {
+    const selectedResults = getSelectedCategoryResults();
+    return (selectedResults[category] || (newsletterContent[category] && newsletterContent[category].result) || '').trim();
+}
+
+function getSubjectArticlesForCategory(category) {
+    return getSummaryArticlesForCategory(category)
+        .filter(a => ['Y', 'YM'].includes(a.status))
+        .slice(0, 3);
+}
+
+const TEMPLATE_FIXED_CONTENT = {
+    logoHref: 'http://www.purablis.com',
+    logoSrc: 'https://purablis.com/Newsletter%20images/Purablis-newsletter-logo.png',
+    youtubeHref: 'https://www.youtube.com/Purablis',
+    youtubeIconSrc: 'https://cdn-images.mailchimp.com/icons/social-block-v2/outline-color-youtube-96.png',
+    unsubscribeHref: 'https://ap.lovethelist.com/index.php/lists/qk5307z6w1e34/unsubscribe/unsubscribe-direct',
+    contactEmail: 'news@lovethelist.com',
+    footerAddress: 'Purablis Media · 177 Arana Dr. Martinez · CA, 94553 · USA',
+    footerLegal: 'Copyright and image use not authorized. Please contact news@purabici.com for disputes or removal.'
+};
+
+function isIncludedInConfirmation(article) {
+    return article.publishImage !== false;
+}
+
+function getMainArticlesForCategory(category) {
+    return getArticlesForCategory(category).filter(a => ['Y', 'YM'].includes(a.status) && isIncludedInConfirmation(a));
+}
+
+function getInterestingFindsArticles() {
+    return articles
+        .filter(a => a.status === 'COOL FINDS' && isIncludedInConfirmation(a))
+        .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+}
+
+function getDownloadSafeAssetUrl(url) {
+    const value = (url || '').trim();
+    if (!value) return '';
+    if (/^data:/i.test(value)) return value;
+    if (/^blob:/i.test(value)) return '';
+    if (/^https?:\/\//i.test(value)) return value;
+    if (/^\/\//.test(value)) return `${window.location.protocol}${value}`;
+    if (value.startsWith('/')) return `${window.location.origin}${value}`;
+    return value;
+}
+
+function isPublicHostedUrl(url) {
+    const value = getDownloadSafeAssetUrl(url);
+    if (!/^https:\/\//i.test(value)) return false;
+    try {
+        const hostname = new URL(value).hostname.toLowerCase();
+        return hostname !== 'localhost' && hostname !== '127.0.0.1';
+    } catch (e) {
+        return false;
+    }
+}
+
+function getArticleImageUrl(article) {
+    return getDownloadSafeAssetUrl(article.publishedImageUrl || article.image || article.originalImageUrl || article.uploadedImageUrl || '');
+}
+
+function getSourceLabel(url) {
+    if (!url) return 'More at purablis.com...';
+    try {
+        const hostname = new URL(url).hostname.replace(/^www\./i, '');
+        return `More at ${hostname}...`;
+    } catch (e) {
+        return 'More at source...';
+    }
+}
+
+function chooseConfirmationInspirationalImage() {
+    const available = inspirationalImages.map(getDownloadSafeAssetUrl).filter(isPublicHostedUrl);
+    if (!available.length) {
+        confirmationInspirationalImage = '';
+        return '';
+    }
+    const selected = getDownloadSafeAssetUrl(confirmationInspirationalImage);
+    if (selected && available.includes(selected)) {
+        confirmationInspirationalImage = selected;
+        return selected;
+    }
+    confirmationInspirationalImage = available[0];
+    return confirmationInspirationalImage;
+}
+
+async function loadConfirmationTemplate(category) {
+    if (confirmationTemplateCache[category]) {
+        return confirmationTemplateCache[category];
+    }
+    try {
+        const res = await fetch(`/api/newsletters/template/${category}`);
+        const html = await res.text();
+        if (res.ok && html && html.trim().startsWith('<')) {
+            confirmationTemplateCache[category] = html;
+            return html;
+        }
+    } catch (error) {
+        console.warn(`Could not load example template for ${category}:`, error);
+    }
+
+    if (newsletterContent.templates && newsletterContent.templates[category]) {
+        confirmationTemplateCache[category] = newsletterContent.templates[category];
+        return confirmationTemplateCache[category];
+    }
+
+    throw new Error(`Could not load ${category} template.`);
+}
+
+function buildFallbackConfirmationHtml(category) {
+    const newsletterName = escapeHtml(getActiveNewsletterName());
+    const summary = escapeHtml(getSelectedOrGeneratedSummary(category)).replace(/\n/g, '<br>');
+    const weeklyHtml = getMainArticlesForCategory(category).map(article => {
+        const title = escapeHtml(article.title || 'Untitled');
+        const url = article.url || '#';
+        const source = escapeHtml(getSourceLabel(article.url || ''));
+        const image = getArticleImageUrl(article);
+        return `
+            <div style="display:flex; gap:12px; padding:12px 0; border-bottom:1px solid #eee;">
+                ${image ? `<img src="${image}" alt="" style="width:60px;height:60px;object-fit:cover;border-radius:6px;">` : ''}
+                <div>
+                    <a href="${url}" target="_blank" style="color:#111; font-weight:700; text-decoration:none;">${title}</a>
+                    <div><a href="${url}" target="_blank" style="color:#2a6edc; font-size:0.85rem;">${source}</a></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    const findsHtml = getInterestingFindsArticles().slice(0, 4).map(article => {
+        const title = escapeHtml(article.title || 'Untitled');
+        const url = article.url || '#';
+        return `<li style="margin-bottom:8px;"><a href="${url}" target="_blank">${title}</a></li>`;
+    }).join('');
+    const inspiration = chooseConfirmationInspirationalImage();
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${newsletterName} - ${category}</title></head><body style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;">
+        <h1>${newsletterName} - ${category}</h1>
+        <p>${summary || 'No summary selected yet.'}</p>
+        <h2>Weekly News</h2>
+        ${weeklyHtml || '<p>No weekly news articles selected yet.</p>'}
+        <h2>Interesting Finds</h2>
+        <ul>${findsHtml || '<li>No interesting finds selected yet.</li>'}</ul>
+        <h2>Inspiration</h2>
+        ${inspiration ? `<img src="${inspiration}" alt="Inspiration" style="max-width:100%;">` : '<p>No inspirational image selected yet.</p>'}
+    </body></html>`;
+}
+
+function applySummaryToTemplate(doc, category) {
+    const summaryText = getSelectedOrGeneratedSummary(category);
+    const introCell = Array.from(doc.querySelectorAll('td, div, p')).find(el => (el.textContent || '').includes('Hi [FNAME],'));
+    if (!introCell || !summaryText) return;
+    const selectedGreeting = escapeHtml(newsletterContent.selectedGreeting || DEFAULT_GREETING);
+
+    const lines = summaryText
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .map(line => escapeHtml(line));
+
+    introCell.innerHTML = `<span style="font-size:14px;line-height: 150%;color: #000000;">Hi [FNAME],<br><br>${lines.join('<br>')}<br><br>${selectedGreeting}<br>Jessica<br><br>If this newsletter&#8217;s not for you, just <a href="${TEMPLATE_FIXED_CONTENT.unsubscribeHref}" style="color:#2baadf;text-decoration:underline;">unsubscribe</a> and you won&#8217;t hear from us again. :) </span><br />&nbsp;`;
+}
+
+function getGeneratedConfirmationHeading(category) {
+    if (newsletterContent.generatedHeadings && newsletterContent.generatedHeadings[category]) {
+        return newsletterContent.generatedHeadings[category];
+    }
+    return '';
+}
+
+function enforceFixedTemplateChrome(doc, category) {
+    const logoLink = doc.querySelector('td.puralog_width a');
+    if (logoLink) {
+        logoLink.href = TEMPLATE_FIXED_CONTENT.logoHref;
+        logoLink.target = '_blank';
+    }
+    const logoImg = doc.querySelector('img.puralogsize');
+    if (logoImg) {
+        logoImg.src = TEMPLATE_FIXED_CONTENT.logoSrc;
+        logoImg.alt = 'Purablis Media';
+    }
+
+    const generatedHeading = getGeneratedConfirmationHeading(category);
+    const headerTextCell = doc.querySelector('td.text strong');
+    if (headerTextCell && generatedHeading) {
+        headerTextCell.textContent = generatedHeading;
+    }
+
+    const youtubeLink = doc.querySelector('td.mcnFollowIconContent a');
+    if (youtubeLink) {
+        youtubeLink.href = TEMPLATE_FIXED_CONTENT.youtubeHref;
+        youtubeLink.target = '_blank';
+    }
+    const youtubeImg = doc.querySelector('img.mcnFollowBlockIcon');
+    if (youtubeImg) {
+        youtubeImg.src = TEMPLATE_FIXED_CONTENT.youtubeIconSrc;
+        youtubeImg.alt = 'YouTube';
+    }
+
+    const footerBlocks = Array.from(doc.querySelectorAll('table.footer td'));
+    if (footerBlocks[0]) {
+        footerBlocks[0].innerHTML = `
+            <div><em>Copyright &copy; 2026 Purablis, All rights reserved.</em></div>
+            <div>Email Contact:</div>
+            <div><a href="mailto:${TEMPLATE_FIXED_CONTENT.contactEmail}" style="mso-line-height-rule: exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;color: #0000f1;font-weight: normal;text-decoration: underline;" target="_blank">${TEMPLATE_FIXED_CONTENT.contactEmail}</a><br />
+            <a href="${TEMPLATE_FIXED_CONTENT.unsubscribeHref}" style="color:#2baadf;text-decoration:underline;">Unsubscribe</a></div>
+            <div>${escapeHtml(TEMPLATE_FIXED_CONTENT.footerAddress).replace(/·/g, '&middot;')}</div>
+        `;
+    }
+    if (footerBlocks[1]) {
+        footerBlocks[1].innerHTML = `<span style="font-size:11px;line-height: 150%;color: #989898;">${escapeHtml(TEMPLATE_FIXED_CONTENT.footerLegal)}</span>`;
+    }
+}
+
+function buildArticleTableHtml(sampleHtml, article) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = sampleHtml;
+    const table = wrapper.firstElementChild;
+    if (!table) return sampleHtml;
+
+    const url = article.url || '#';
+    const title = article.title || 'Untitled';
+    const image = getArticleImageUrl(article);
+    const sourceLabel = getSourceLabel(article.url || '');
+
+    Array.from(table.querySelectorAll('a')).forEach(link => {
+        link.href = url;
+        link.setAttribute('target', '_blank');
+    });
+
+    const imageEl = table.querySelector('img.mcnImage, img');
+    if (imageEl && image) {
+        imageEl.src = image;
+        imageEl.alt = title;
+    }
+
+    const descEl = table.querySelector('.a-desc');
+    if (descEl) {
+        descEl.textContent = title;
+    } else {
+        const strongEl = table.querySelector('strong');
+        if (strongEl) strongEl.textContent = title;
+    }
+
+    const sourceEl = table.querySelector('.cblue');
+    if (sourceEl) {
+        sourceEl.textContent = sourceLabel;
+    }
+
+    return table.outerHTML;
+}
+
+function findHeaderTableBounds(html, marker) {
+    const markerIndex = html.indexOf(marker);
+    if (markerIndex === -1) return null;
+    const tableStart = html.lastIndexOf('<table', markerIndex);
+    const tableEnd = html.indexOf('</table>', markerIndex);
+    if (tableStart === -1 || tableEnd === -1) return null;
+    return { start: tableStart, end: tableEnd + 8 };
+}
+
+function buildSummaryHtml(category) {
+    const summaryText = getSelectedOrGeneratedSummary(category);
+    if (!summaryText) return null;
+    const selectedGreeting = escapeHtml(newsletterContent.selectedGreeting || DEFAULT_GREETING);
+    const lines = summaryText
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .map(line => escapeHtml(line));
+    return `<div style="text-align: justify;"><span style="font-size:14px;line-height: 150%;color: #000000;">Hi [FNAME],<br />
+                                <br />
+                                ${lines.join('<br />\n\t\t\t\t\t\t\t\t\t')}<br />
+                                <br />
+                                ${selectedGreeting}<br />
+                                Jessica<br />
+                                <br />
+                                If this newsletter&#8217;s not for you, just <a href="${TEMPLATE_FIXED_CONTENT.unsubscribeHref}" style="color:#2baadf;text-decoration:underline;">unsubscribe</a> and you won&#8217;t hear from us again. :) </span><br />
+                                &nbsp;</div>`;
+}
+
+function replaceArticleSection(html, startMarker, endMarker, articles) {
+    const startBounds = findHeaderTableBounds(html, startMarker);
+    const endBounds = findHeaderTableBounds(html, endMarker);
+    if (!startBounds || !endBounds || endBounds.start <= startBounds.end) return html;
+
+    const currentSection = html.slice(startBounds.end, endBounds.start);
+    const sampleMatch = currentSection.match(/<table[^>]*class="mcnCaptionRightImageContentContainer"[\s\S]*?<\/table>/i);
+    if (!sampleMatch) return html;
+
+    const renderedTables = articles.map(article => buildArticleTableHtml(sampleMatch[0], article)).join('\n');
+    return html.slice(0, startBounds.end) + '\n\n' + renderedTables + '\n\n' + html.slice(endBounds.start);
+}
+
+function renderTemplateHtml(category, templateHtml) {
+    let html = templateHtml;
+    const mainArticles = getMainArticlesForCategory(category);
+    const findsArticles = getInterestingFindsArticles();
+    const summaryHtml = buildSummaryHtml(category);
+
+    if (summaryHtml) {
+        html = html.replace(/<div style="text-align: justify;"><span style="font-size:14px;line-height: 150%;color: #000000;">[\s\S]*?<\/span><br \/>\s*&nbsp;<\/div>/i, summaryHtml);
+    }
+
+    html = replaceArticleSection(html, 'Weekly News', 'Interesting Finds', mainArticles);
+    html = replaceArticleSection(html, 'Interesting Finds', 'Inspiration', findsArticles);
+
+    const inspirationImage = chooseConfirmationInspirationalImage();
+    if (inspirationImage) {
+        html = html.replace(/(<a[^>]*target="_blank"[^>]*title="">\s*<img alt="Inspiration" class="mcnImage2" src=")([^"]*)(")/i, `$1${inspirationImage}$3`);
+    }
+
+    html = html.replace(/<a href="http:\/\/www\.purablis\.com" target="_blank"><img alt="" class="puralogsize" src="[^"]*" \/><\/a>/i, `<a href="${TEMPLATE_FIXED_CONTENT.logoHref}" target="_blank"><img alt="" class="puralogsize" src="${TEMPLATE_FIXED_CONTENT.logoSrc}" /></a>`);
+    html = html.replace(/<a href="https:\/\/www\.youtube\.com\/Purablis"[\s\S]*?<img alt="YouTube" class="mcnFollowBlockIcon" src="[^"]*"[\s\S]*?<\/a>/i, `<a href="${TEMPLATE_FIXED_CONTENT.youtubeHref}" style="mso-line-height-rule: exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;" target="_blank"><img alt="YouTube" class="mcnFollowBlockIcon" src="${TEMPLATE_FIXED_CONTENT.youtubeIconSrc}" style="width: 30px;max-width: 30px;display: block;border: 0;height: auto;outline: none;text-decoration: none;-ms-interpolation-mode: bicubic;" width="30" /></a>`);
+    html = html.replace(/<a href="https:\/\/ap\.lovethelist\.com\/index\.php\/lists\/qk5307z6w1e34\/unsubscribe\/unsubscribe-direct" style="color:#2baadf;text-decoration:underline;">unsubscribe<\/a>/i, `<a href="${TEMPLATE_FIXED_CONTENT.unsubscribeHref}" style="color:#2baadf;text-decoration:underline;">unsubscribe</a>`);
+    html = html.replace(/<a href="https:\/\/ap\.lovethelist\.com\/index\.php\/lists\/qk5307z6w1e34\/unsubscribe\/unsubscribe-direct" style="color:#2baadf;text-decoration:underline;">Unsubscribe<\/a>/i, `<a href="${TEMPLATE_FIXED_CONTENT.unsubscribeHref}" style="color:#2baadf;text-decoration:underline;">Unsubscribe</a>`);
+
+    const generatedHeading = getGeneratedConfirmationHeading(category);
+    if (generatedHeading) {
+        html = html.replace(/(<td class="text"[^>]*><strong>)([\s\S]*?)(<\/strong><\/td>)/i, `$1${escapeHtml(generatedHeading)}$3`);
+    }
+
+    return html;
+}
+
+async function buildConfirmationHtml(category) {
+    try {
+        const templateHtml = await loadConfirmationTemplate(category);
+        const rendered = renderTemplateHtml(category, templateHtml);
+        confirmationRenderedHtml[category] = rendered;
+        return rendered;
+    } catch (error) {
+        console.error(`Failed to build ${category} confirmation HTML:`, error);
+        const fallbackHtml = buildFallbackConfirmationHtml(category);
+        confirmationRenderedHtml[category] = fallbackHtml;
+        return fallbackHtml;
+    }
+}
+
+window.switchConfirmationTab = (category) => {
+    currentConfirmationTab = category;
+    renderConfirmationPreviews();
+};
+
+window.downloadConfirmationHtml = async (category) => {
+    const html = confirmationRenderedHtml[category] || await buildConfirmationHtml(category);
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${getActiveNewsletterName().replace(/[^\w\-]+/g, '-') || 'newsletter'}-${category}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+};
+
+window.downloadConfirmationDoc = async (category) => {
+    const html = confirmationRenderedHtml[category] || await buildConfirmationHtml(category);
+    const blob = new Blob([html], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${getActiveNewsletterName().replace(/[^\w\-]+/g, '-') || 'newsletter'}-${category}.doc`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+};
+
+async function renderConfirmationPreviews() {
+    const container = document.getElementById('confirmation-previews');
+    if (!container) return;
+
+    const selectedSummary = getSelectedOrGeneratedSummary(currentConfirmationTab);
+    container.innerHTML = `
+        <div class="tabs-container" style="margin-bottom: 18px; border-bottom: 1px solid #ddd;">
+            <button class="tab-btn ${currentConfirmationTab === 'MED' ? 'active' : ''}" onclick="switchConfirmationTab('MED')">MED</button>
+            <button class="tab-btn ${currentConfirmationTab === 'THC' ? 'active' : ''}" onclick="switchConfirmationTab('THC')">THC</button>
+            <button class="tab-btn ${currentConfirmationTab === 'CBD' ? 'active' : ''}" onclick="switchConfirmationTab('CBD')">CBD</button>
+            <button class="tab-btn ${currentConfirmationTab === 'INV' ? 'active' : ''}" onclick="switchConfirmationTab('INV')">INV</button>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:14px;">
+            <div>
+                <div style="font-size: 1rem; font-weight: 700; margin-bottom: 4px;">${currentConfirmationTab} Preview</div>
+                <div style="font-size: 0.85rem; color:#666;">Uses the example email template itself, then fills in the current summary, ranked articles, interesting finds, and one inspirational image.</div>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="btn btn-success btn-sm" onclick="downloadConfirmationHtml('${currentConfirmationTab}')">Download HTML</button>
+                <button class="btn btn-outline btn-sm" onclick="downloadConfirmationDoc('${currentConfirmationTab}')">Download DOC</button>
+            </div>
+        </div>
+        <div id="confirmation-preview-frame-wrap" style="border:1px solid #ddd; border-radius: 10px; overflow:auto; background:#fff;">
+            <div style="padding: 24px; text-align:center; color:#666;">Loading ${currentConfirmationTab} template preview...</div>
+        </div>
+    `;
+
+    const html = await buildConfirmationHtml(currentConfirmationTab);
+    const frameWrap = document.getElementById('confirmation-preview-frame-wrap');
+    if (!frameWrap) return;
+
+    frameWrap.innerHTML = `<iframe title="${currentConfirmationTab} newsletter preview" style="width:900px; min-width:900px; min-height:1100px; border:0; background:#fff; display:block; margin:0 auto;"></iframe>`;
+    const iframe = frameWrap.querySelector('iframe');
+    if (iframe) iframe.srcdoc = html;
+}
+
+window.updateSubjectPrompt = (value) => {
+    newsletterContent.subjectPrompt = normalizeSubjectPrompt(value);
+    saveState();
+};
+
+window.updateGeneratedSubject = (category, value) => {
+    if (!newsletterContent.generatedSubjects) {
+        newsletterContent.generatedSubjects = { MED: '', THC: '', CBD: '', INV: '' };
+    }
+    newsletterContent.generatedSubjects[category] = value;
+    saveState();
+};
+
+window.copyGeneratedSubject = async (category) => {
+    const text = (newsletterContent.generatedSubjects && newsletterContent.generatedSubjects[category]) || '';
+    if (!text.trim()) return alert(`No ${category} subject to copy yet.`);
+    await navigator.clipboard.writeText(text);
+    alert(`${category} subject copied.`);
+};
+
+window.generateAllSubjects = async () => {
+    const categories = ['MED', 'THC', 'CBD', 'INV'];
+    const btn = document.getElementById('btn-generate-subjects');
+    const btnText = document.getElementById('btn-generate-subjects-text');
+    const categoryArticles = {};
+    categories.forEach((category) => {
+        categoryArticles[category] = getSubjectArticlesForCategory(category).map((article, index) => ({
+            index: index + 1,
+            title: article.title || '',
+            url: article.url || '',
+            date: article.date || '',
+            description: article.description || ''
+        }));
+    });
+
+    const hasAnyArticles = categories.some((category) => categoryArticles[category].length > 0);
+    if (!hasAnyArticles) {
+        return alert('No top priority articles (1, 2, 3) are available yet for subject generation.');
+    }
+
+    const prompt = normalizeSubjectPrompt(newsletterContent.subjectPrompt);
+    if (btn) btn.disabled = true;
+    if (btnText) btnText.textContent = 'Generating...';
+    try {
+        const res = await fetch('/api/articles/generate-subjects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prompt,
+                categories: categoryArticles,
+                model: 'gemini-flash-3-0'
+            })
+        });
+        const data = await parseJsonResponse(res, 'Subject generation route did not return JSON. Restart the app server and try again.');
+        if (!res.ok || !data.success || !data.subjects) {
+            throw new Error(data.error || 'Failed to generate subjects');
+        }
+        newsletterContent.generatedSubjects = {
+            MED: data.subjects.MED || '',
+            THC: data.subjects.THC || '',
+            CBD: data.subjects.CBD || '',
+            INV: data.subjects.INV || ''
+        };
+        saveState();
+        renderConfirmationView();
+    } catch (e) {
+        console.error(e);
+        alert('Failed to generate subjects: ' + e.message);
+    } finally {
+        if (btn) btn.disabled = false;
+        if (btnText) btnText.textContent = 'Generate Subjects';
+    }
+};
 
 window.exportSpreadsheet = () => {
     // Filter unique articles by URL to avoid duplicates in spreadsheet
@@ -1048,7 +2186,7 @@ function buildArticlesHtml(category) {
     });
     return relevant.map(a => `
         <div class="article-item">
-            ${a.image ? `<img src="${a.image}" alt="" class="max-w-[90px] h-[90px] object-cover" onerror="this.onerror=null;this.src='${a.originalImageUrl || ''}';">` : ''}
+            ${a.image ? `<img src="${a.image}" alt="" style="max-width:90px;height:90px;object-fit:cover;" onerror="this.onerror=null;this.src='${a.originalImageUrl || ''}';">` : ''}
             <div>
                 <strong>${(a.title || '').replace(/</g, '&lt;')}</strong>
                 <a href="${a.url || '#'}">${(a.url || '').replace(/</g, '&lt;')}</a>
@@ -1083,7 +2221,7 @@ window.generateNewsletters = () => {
             const safeResult = (resultText || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
             html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${(newsletterName + ' - ' + cat).replace(/</g, '&lt;')}</title></head><body>
                 <h1>${(newsletterName + ' - ' + cat).replace(/</g, '&lt;')}</h1>
-                ${inspirationalImg ? `<img src="${inspirationalImg.replace(/"/g, '&quot;')}" alt="Header" class="max-w-full">` : ''}
+                ${inspirationalImg ? `<img src="${inspirationalImg.replace(/"/g, '&quot;')}" alt="Header" style="max-width:100%;">` : ''}
                 <div class="summary">${safeResult}</div>
                 <div class="articles">${articlesHtml}</div>
             </body></html>`;
@@ -1237,7 +2375,7 @@ window.publishAllImagesToPurablis = async () => {
 
                     const box = document.getElementById(`selected-img-${idx}`);
                     if (box) {
-                        box.innerHTML = `<div class="selected-image-container"><img src="${data.url}" class="img-fluid max-h-[120px]" onerror="this.onerror=null;this.src='${articles[idx].originalImageUrl || ''}';this.parentElement.classList.add('img-fallback');"><button class="btn-remove-image" onclick="removeImage(${idx})">×</button><span class="badge-published" title="Published">P</span></div>`;
+                        box.innerHTML = `<div class="selected-image-container"><img src="${data.url}" class="img-fluid" style="max-height: 120px;" onerror="this.onerror=null;this.src='${articles[idx].originalImageUrl || ''}';this.parentElement.classList.add('img-fallback');"><button class="btn-remove-image" onclick="removeImage(${idx})">×</button><span class="badge-published" title="Published">P</span></div>`;
                     }
                 } else {
                     fail++;
@@ -1411,27 +2549,31 @@ window.downloadAllImagesZip = async () => {
 
 window.exportArticlesXls = () => {
     if (articles.length === 0) return alert('No articles to export.');
+    const headers = ['Title', 'URL', 'Description', 'Date', 'Status', 'Paywall', 'MED', 'THC', 'CBD', 'INV', 'Notes', 'Image URL'];
+    const optionalCell = (value) => {
+        const text = String(value ?? '').trim();
+        return text ? text : undefined;
+    };
+    const rows = articles.map(a => ([
+        a.title || '',
+        a.url || '',
+        optionalCell(a.description),
+        optionalCell(a.date),
+        optionalCell(a.status),
+        a.paywall ? 'Yes' : 'No',
+        optionalCell(a.ranks && a.ranks.MED),
+        optionalCell(a.ranks && a.ranks.THC),
+        optionalCell(a.ranks && a.ranks.CBD),
+        optionalCell(a.ranks && a.ranks.INV),
+        optionalCell(a.notes),
+        optionalCell(a.image)
+    ]));
 
-    const rows = articles.map(a => ({
-        'Title': a.title || '',
-        'URL': a.url || '',
-        'Description': a.description || '',
-        'Date': a.date || '',
-        'Status': a.status || '',
-        'Paywall': a.paywall ? 'Yes' : 'No',
-        'MED': (a.ranks && a.ranks.MED) || '',
-        'THC': (a.ranks && a.ranks.THC) || '',
-        'CBD': (a.ranks && a.ranks.CBD) || '',
-        'INV': (a.ranks && a.ranks.INV) || '',
-        'Notes': a.notes || '',
-        'Image URL': a.image || ''
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(rows);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
 
     // Auto-size columns
-    const colWidths = Object.keys(rows[0]).map(key => {
-        const maxLen = Math.max(key.length, ...rows.map(r => String(r[key]).length));
+    const colWidths = headers.map((key, index) => {
+        const maxLen = Math.max(key.length, ...rows.map(r => String(r[index] ?? '').length));
         return { wch: Math.min(maxLen + 2, 60) };
     });
     ws['!cols'] = colWidths;
@@ -1441,6 +2583,105 @@ window.exportArticlesXls = () => {
     const name = document.getElementById('newsletter-name').value || 'newsletter';
     XLSX.writeFile(wb, `${name.replace(/[^a-zA-Z0-9 ]/g, '')}-articles.xlsx`);
 };
+
+function updateChosenFileName(inputId, labelId) {
+    const input = document.getElementById(inputId);
+    const label = document.getElementById(labelId);
+    if (!label) return;
+    label.textContent = input && input.files && input.files.length > 0
+        ? input.files[0].name
+        : 'No file chosen';
+}
+
+function assignImportedArticles(importedArticles) {
+    const importedAt = new Date().toISOString();
+    articles = (importedArticles || []).map((article, index) => ({
+        ...article,
+        id: index + 1,
+        addedAt: article.addedAt || importedAt
+    }));
+    archivedArticles = [];
+    laterCoolArticles = [];
+}
+
+function upsertImportedSession(name) {
+    if (!name) return;
+    const sessions = getSavedSessions();
+    sessions[name] = {
+        articles: JSON.parse(JSON.stringify(articles)),
+        archivedArticles: JSON.parse(JSON.stringify(archivedArticles)),
+        inspirationalImages: [...inspirationalImages],
+        newsletterContent: JSON.parse(JSON.stringify(newsletterContent)),
+        savedAt: new Date().toISOString()
+    };
+    saveSavedSessions(sessions);
+    currentSessionName = name;
+    populateSavedDropdown();
+}
+
+async function uploadArticlesWorkbook({ inputId, buttonId, buttonLabel, replacePrompt, successMessage, switchToStep2 = false }) {
+    const input = document.getElementById(inputId);
+    const button = document.getElementById(buttonId);
+    const nameEl = document.getElementById('newsletter-name');
+    const newsletterName = (nameEl && nameEl.value.trim()) || 'Week 1';
+
+    if (!input || !input.files || !input.files.length) {
+        alert('Please select an Excel file first.');
+        return false;
+    }
+
+    if (replacePrompt && articles.length > 0 && !confirm(replacePrompt.replace('{count}', articles.length))) {
+        return false;
+    }
+
+    if (button) {
+        button.disabled = true;
+        button.textContent = 'Uploading...';
+    }
+
+    const formData = new FormData();
+    formData.append('file', input.files[0]);
+    formData.append('newsletterName', newsletterName);
+
+    try {
+        const response = await fetch('/api/articles/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Upload failed.');
+        }
+
+        assignImportedArticles(data.articles || []);
+        if (nameEl) {
+            nameEl.value = data.newsletterName || newsletterName;
+        }
+        saveState();
+        upsertImportedSession((data.newsletterName || newsletterName).trim());
+        renderArticles();
+
+        if (switchToStep2) {
+            switchStep(2);
+        } else {
+            updateStats();
+        }
+
+        alert(successMessage.replace('{count}', articles.length).replace('{name}', data.newsletterName || newsletterName));
+        input.value = '';
+        return true;
+    } catch (err) {
+        console.error(err);
+        alert(err.message || 'Upload failed. See console.');
+        return false;
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.textContent = buttonLabel;
+        }
+    }
+}
 
 // Event Listeners for Steps
 steps.forEach((step) => {
@@ -1452,16 +2693,14 @@ steps.forEach((step) => {
 
 // File Upload Preview
 const fileInput = document.getElementById('excel-upload');
-const fileNameDisplay = document.getElementById('file-name');
+const articleViewFileInput = document.getElementById('article-view-excel-upload');
 
 if (fileInput) {
-    fileInput.addEventListener('change', (e) => {
-        if (e.target.files.length > 0) {
-            fileNameDisplay.textContent = e.target.files[0].name;
-        } else {
-            fileNameDisplay.textContent = "No file chosen";
-        }
-    });
+    fileInput.addEventListener('change', () => updateChosenFileName('excel-upload', 'file-name'));
+}
+
+if (articleViewFileInput) {
+    articleViewFileInput.addEventListener('change', () => updateChosenFileName('article-view-excel-upload', 'article-view-file-name'));
 }
 
 const btnLoadTemplate = document.getElementById('btn-load-template');
@@ -1488,7 +2727,13 @@ window.setBatchFilter = (value) => { batchFilter = value || ''; };
 // Render Articles Function (Table View)
 function renderArticles() {
     const list = document.getElementById('articles-list');
+    if (!list) return;
     list.innerHTML = ''; // Clear existing
+
+    const titleSortSelect = document.getElementById('article-sort-order');
+    if (titleSortSelect) {
+        titleSortSelect.value = articleTitleSortOrder;
+    }
 
     // Populate batch filter dropdown (unique addedAt, sorted)
     const batchSelect = document.getElementById('batch-filter-select');
@@ -1502,17 +2747,8 @@ function renderArticles() {
         batchSelect.value = batchFilter || '';
     }
 
-    // Add Top Controls
-    const controls = document.createElement('div');
-    controls.className = 'controls-row justify-between mb-5';
-    controls.innerHTML = `
-        <button class="btn btn-secondary" onclick="switchStep(1)">Back: Search</button>
-        <button class="btn btn-primary" onclick="switchStep(3)">Next: Image View</button>
-    `;
-    list.appendChild(controls);
-
     if (articles.length === 0) {
-        list.innerHTML += '<div class="px-5 py-5 text-center text-gray-500">No articles found. Please try searching again.</div>';
+        list.innerHTML += '<div style="padding: 20px; text-align: center; color: #777;">No articles found. Please try searching again.</div>';
         updateStats();
         return;
     }
@@ -1536,7 +2772,7 @@ function renderArticles() {
         // Checkbox logic for categories
         const isStatusValid = ['Y', 'YM', 'M', 'COOL FINDS', 'LATER COOL'].includes(article.status);
         const disabledAttr = isStatusValid ? '' : 'disabled';
-        const disabledClass = isStatusValid ? '' : 'opacity-50 cursor-not-allowed';
+        const disabledStyle = isStatusValid ? '' : 'opacity: 0.5; cursor: not-allowed;';
 
         const categoryInputs = ['MED', 'THC', 'CBD', 'INV'].map(cat => {
             let rank = (article.ranks && (article.ranks[cat] ?? article.ranks[cat.toLowerCase()])) ?? (article.categories && article.categories.includes(cat) ? 'Y' : '');
@@ -1547,7 +2783,7 @@ function renderArticles() {
                     <input type="text"
                         value="${rank}"
                         oninput="updateCategoryRank(${index}, '${cat}', this.value)"
-                        class="${disabledClass}"
+                        style="${disabledStyle}"
                         ${disabledAttr}
                         placeholder=""
                     >
@@ -1564,27 +2800,28 @@ function renderArticles() {
                 </div>
 
                 <div class="col-article">
-                    <div class="flex items-start gap-2">
+                    <div style="display: flex; align-items: flex-start; gap: 8px;">
                         <textarea
                             class="title-edit"
                             rows="2"
                             onchange="updateArticleField(${index}, 'title', this.value)"
-                            style="font-family: inherit;"
+                            style="font-family: inherit; flex: 1; min-width: 120px;"
                         >${article.title}</textarea>
                         <span class="article-added-at" title="${article.addedAt ? 'Added ' + article.addedAt : 'No add date'}">${article.addedAt ? 'added ' + formatAddedAt(article.addedAt) : '—'}</span>
                     </div>
-                    <p class="my-1.25 text-[0.85rem] text-gray-500">
+                    <p style="margin: 5px 0; font-size: 0.85rem; color: #666;">
                         ${article.description ? article.description.substring(0, 120) + '...' : 'No description'}
                     </p>
 
-                    <div class="flex items-center gap-1.25">
+                    <div style="display: flex; align-items: center; gap: 5px;">
                         <input
                             type="text"
-                            class="url-edit text-[0.8rem] px-1.25 py-0.5 w-full text-blue-600"
+                            class="url-edit"
                             value="${article.url}"
                             onchange="updateArticleField(${index}, 'url', this.value)"
+                            style="font-size: 0.8rem; padding: 2px 5px; width: 100%; color: #0066cc;"
                         >
-                        <a href="${article.url}" target="_blank" title="Open Link" class="no-underline">🔗</a>
+                        <a href="${article.url}" target="_blank" title="Open Link" style="text-decoration: none;">🔗</a>
                     </div>
                 </div>
 
@@ -1603,7 +2840,7 @@ function renderArticles() {
                 </div>
 
                 <div class="col-status">
-                     <select onchange="updateArticleField(${index}, 'status', this.value)">
+                        <select onchange="updateArticleField(${index}, 'status', this.value)">
                         <option value="">Status...</option>
                         <option value="Y" ${article.status === 'Y' ? 'selected' : ''}>Y</option>
                         <option value="YM" ${article.status === 'YM' ? 'selected' : ''}>YM</option>
@@ -1618,15 +2855,16 @@ function renderArticles() {
 
                 <div class="col-keyword">
                     <textarea
-                        class="form-control w-full h-[60px] text-[0.85rem] resize-y"
+                        class="form-control"
                         onchange="updateArticleField(${index}, 'notes', this.value)"
                         placeholder="Notes..."
+                        style="width: 100%; height: 60px; font-size: 0.85rem; resize: vertical;"
                     >${article.notes || ''}</textarea>
                 </div>
 
                 <div class="col-actions">
-                    <button class="btn btn-sm btn-outline text-orange-600 border-orange-600 mb-1.25 w-full" onclick="archiveArticle(${index})">Archive</button>
-                    <button class="btn btn-sm btn-outline text-red-600 border-red-600 w-full" onclick="removeArticle(${index})">Remove</button>
+                    <button class="btn btn-sm btn-outline" style="color: #f57c00; border-color: #f57c00; margin-bottom: 5px; width: 100%;" onclick="archiveArticle(${index})">Archive</button>
+                    <button class="btn btn-sm btn-outline" style="color: #d32f2f; border-color: #d32f2f; width: 100%;" onclick="removeArticle(${index})">Remove</button>
                 </div>
             </div>
         `;
@@ -1689,12 +2927,12 @@ window.openAddArticleModal = () => {
     document.getElementById('add-article-url').value = '';
     document.getElementById('add-article-status').value = 'Y';
     ['med', 'thc', 'cbd', 'inv'].forEach(c => { document.getElementById('add-article-' + c).value = ''; });
-    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
 };
 
 window.closeAddArticleModal = () => {
     const modal = document.getElementById('add-article-modal');
-    if (modal) modal.classList.add('hidden');
+    if (modal) modal.style.display = 'none';
 };
 
 window.addArticleFromModal = () => {
@@ -1794,6 +3032,9 @@ function getRankForSort(article, cat) {
 const STATUS_ORDER = ['Y', 'YM', 'M', 'NO', 'COOL FINDS', 'LATER COOL'];
 window.sortArticles = (sortKey) => {
     if (!articles || articles.length === 0) return;
+    articleTitleSortOrder = '';
+    const titleSortSelect = document.getElementById('article-sort-order');
+    if (titleSortSelect) titleSortSelect.value = '';
 
     if (sortKey === 'status') {
         articles.sort((a, b) => {
@@ -1825,6 +3066,9 @@ window.sortArticles = (sortKey) => {
 // Sort by MED, then THC, then CBD, then INV (lowest number first). Uses same effective rank as display.
 window.sortByRanks = () => {
     if (!articles || articles.length === 0) return;
+    articleTitleSortOrder = '';
+    const titleSortSelect = document.getElementById('article-sort-order');
+    if (titleSortSelect) titleSortSelect.value = '';
     const order = ['MED', 'THC', 'CBD', 'INV'];
     articles.sort((a, b) => {
         for (const cat of order) {
@@ -1838,10 +3082,66 @@ window.sortByRanks = () => {
     renderArticles();
 };
 
-// Articles for a category in display order: same filter + sort as table (numbers 1,2,3 first, then Y, etc.).
+window.sortArticlesByTitle = (order) => {
+    articleTitleSortOrder = order || '';
+    if (!articles || articles.length === 0 || !articleTitleSortOrder) {
+        renderArticles();
+        return;
+    }
+
+    if (articleTitleSortOrder === 'oldnew' || articleTitleSortOrder === 'newold') {
+        const direction = articleTitleSortOrder === 'newold' ? -1 : 1;
+        articles.sort((a, b) => {
+            const timeA = a.addedAt ? new Date(a.addedAt).getTime() : 0;
+            const timeB = b.addedAt ? new Date(b.addedAt).getTime() : 0;
+            if (timeA !== timeB) return (timeA - timeB) * direction;
+            return String(a.title || '').localeCompare(String(b.title || ''));
+        });
+        saveState();
+        renderArticles();
+        return;
+    }
+
+    const direction = articleTitleSortOrder === 'za' ? -1 : 1;
+    articles.sort((a, b) => {
+        const titleA = String(a.title || '').trim().toLowerCase();
+        const titleB = String(b.title || '').trim().toLowerCase();
+        return titleA.localeCompare(titleB) * direction;
+    });
+    saveState();
+    renderArticles();
+};
+
+window.sortImagesView = (order) => {
+    imageViewSortOrder = order || '';
+    renderImagesView();
+};
+
+function isPrioritySummaryRank(rank) {
+    const value = String(rank ?? '').trim();
+    return ['1', '2', '3', '4'].includes(value);
+}
+
+// Articles used for Text summaries: only explicit priority ranks 1-4.
+function getSummaryArticlesForCategory(category) {
+    return articles.filter(a => {
+        if (!['Y', 'YM', 'COOL FINDS', 'LATER COOL'].includes(a.status)) return false;
+        if (a.selected === false) return false;
+        const rank = getRankForSort(a, category);
+        return isPrioritySummaryRank(rank);
+    }).sort((a, b) => {
+        const rA = rankToSortValue(getRankForSort(a, category));
+        const rB = rankToSortValue(getRankForSort(b, category));
+        if (rA !== rB) return rA - rB;
+        return (a.title || '').localeCompare(b.title || '');
+    });
+}
+
+// Articles shown in Confirmation/final newsletter: broader ranked + selected article set.
 function getArticlesForCategory(category) {
     return articles.filter(a => {
         if (!['Y', 'YM', 'COOL FINDS', 'LATER COOL'].includes(a.status)) return false;
+        if (a.selected === false) return false;
         const rank = getRankForSort(a, category);
         return rank !== '' && rank !== undefined;
     }).sort((a, b) => {
@@ -1852,37 +3152,38 @@ function getArticlesForCategory(category) {
     });
 }
 
+function getSelectedRankCounts() {
+    return {
+        MED: getArticlesForCategory('MED').length,
+        THC: getArticlesForCategory('THC').length,
+        CBD: getArticlesForCategory('CBD').length,
+        INV: getArticlesForCategory('INV').length
+    };
+}
+
 function updateStats() {
     const statsEl = document.getElementById('article-stats');
     if (!statsEl) return;
 
-    const counts = { MED: 0, THC: 0, CBD: 0, INV: 0 };
-    let validStatusCount = 0;
-    const validStatuses = ['Y', 'YM', 'COOL FINDS'];
+    const counts = getSelectedRankCounts();
+    let selectedCount = 0;
 
     articles.forEach(a => {
-        const isValid = validStatuses.includes(a.status);
-        if (isValid) validStatusCount++;
-
-        if (a.ranks) {
-            ['MED', 'THC', 'CBD', 'INV'].forEach(cat => {
-                if (a.ranks[cat]) counts[cat]++;
-            });
-        }
+        if (a.selected !== false) selectedCount++;
     });
 
     const sessionLabel = currentSessionName
-        ? `<span class="stat-item bg-indigo-100 text-indigo-800 font-semibold">${currentSessionName}</span>`
+        ? `<span class="stat-item" style="background:#e8eaf6; color:#283593; font-weight:600;">${currentSessionName}</span>`
         : '';
 
     const statsHtml = `
         ${sessionLabel}
         <span class="stat-item" title="Total articles in list">Total: ${articles.length}</span>
-        <span class="stat-item bg-cyan-100 text-cyan-900" title="Status Y/YM/COOL FINDS">Selected: ${validStatusCount}</span>
-        <span class="stat-item bg-blue-100 text-blue-900">MED: ${counts.MED}</span>
-        <span class="stat-item bg-green-100 text-green-900">THC: ${counts.THC}</span>
-        <span class="stat-item bg-amber-100 text-amber-900">CBD: ${counts.CBD}</span>
-        <span class="stat-item bg-purple-100 text-purple-900">INV: ${counts.INV}</span>
+        <span class="stat-item" style="background:#e0f7fa; color:#006064;" title="Articles checked in the Select column">Selected: ${selectedCount}</span>
+        <span class="stat-item" style="background:#e3f2fd; color:#0d47a1;">MED: ${counts.MED}</span>
+        <span class="stat-item" style="background:#e8f5e9; color:#1b5e20;">THC: ${counts.THC}</span>
+        <span class="stat-item" style="background:#fff3e0; color:#e65100;">CBD: ${counts.CBD}</span>
+        <span class="stat-item" style="background:#f3e5f5; color:#4a148c;">INV: ${counts.INV}</span>
     `;
     statsEl.innerHTML = statsHtml;
     const footerEl = document.getElementById('article-stats-footer');
@@ -1934,7 +3235,6 @@ window.saveSession = () => {
     if (!name) return alert('Please enter a newsletter name on the first page.');
 
     const sessions = getSavedSessions();
-
     sessions[name] = {
         articles: JSON.parse(JSON.stringify(articles)),
         archivedArticles: JSON.parse(JSON.stringify(archivedArticles)),
@@ -1965,12 +3265,23 @@ window.loadSession = () => {
     archivedArticles = session.archivedArticles || [];
     inspirationalImages = session.inspirationalImages || [];
     const nc = session.newsletterContent || { MED: { intro: '', outro: '' }, THC: { intro: '', outro: '' }, CBD: { intro: '', outro: '' }, INV: { intro: '', outro: '' } };
-    newsletterContent = { ...nc, templates: nc.templates || { MED: '', THC: '', CBD: '', INV: '' } };
+    newsletterContent = {
+        ...nc,
+        templates: nc.templates || { MED: '', THC: '', CBD: '', INV: '' },
+        summaryRules: normalizeSummaryRules(nc.summaryRules),
+        selectedGreeting: nc.selectedGreeting || DEFAULT_GREETING,
+        subjectPrompt: normalizeSubjectPrompt(nc.subjectPrompt),
+        generatedSubjects: nc.generatedSubjects || { MED: '', THC: '', CBD: '', INV: '' }
+    };
 
     document.getElementById('newsletter-name').value = name;
     currentSessionName = name;
     saveState();
     renderArticles();
+    const activeStep = document.querySelector('.step.active');
+    if (activeStep && activeStep.getAttribute('data-step') === '3') {
+        renderImagesView();
+    }
     alert(`Loaded "${name}" (${articles.length} articles).`);
 };
 
@@ -1987,8 +3298,10 @@ window.deleteSession = () => {
 };
 
 function populateSavedDropdown() {
+    const dropdownStep1 = document.getElementById('saved-sessions-dropdown-step1');
     const dropdown = document.getElementById('saved-sessions-dropdown');
     const dropdownStep3 = document.getElementById('saved-sessions-dropdown-step3');
+    const nameInput = document.getElementById('newsletter-name');
 
     const sessions = getSavedSessions();
     const names = Object.keys(sessions).sort();
@@ -2000,6 +3313,9 @@ function populateSavedDropdown() {
         return `<option value="${name}">${name} (${count} articles, ${date})</option>`;
     }).join('');
 
+    if (dropdownStep1) {
+        dropdownStep1.innerHTML = '<option value="">Saved newsletters</option>' + optionsHtml;
+    }
     if (dropdown) {
         dropdown.innerHTML = '<option value="">-- Select --</option>' + optionsHtml;
     }
@@ -2007,10 +3323,17 @@ function populateSavedDropdown() {
         dropdownStep3.innerHTML = '<option value="">-- Select --</option>' + optionsHtml;
     }
 
+    const selectedName = currentSessionName || (nameInput ? nameInput.value.trim() : '');
+    if (selectedName) {
+        if (dropdownStep1) dropdownStep1.value = selectedName;
+        if (dropdown) dropdown.value = selectedName;
+        if (dropdownStep3) dropdownStep3.value = selectedName;
+    }
+
     const hintEl = document.getElementById('state-load-hint');
     const textEl = document.getElementById('state-load-hint-text');
     if (hintEl && names.length === 0) {
-        hintEl.classList.remove('hidden');
+        hintEl.style.display = 'block';
         if (textEl && textEl.textContent === 'Loading…') {
             if (typeof window.updateStateHintFromDiagnostic === 'function') window.updateStateHintFromDiagnostic();
         }
@@ -2036,25 +3359,50 @@ window.deleteSessionFromStep3 = () => {
 };
 
 window.pushStateToServer = async function () {
-    const state = {
-        articles,
-        archivedArticles,
-        laterCoolArticles,
-        inspirationalImages,
-        newsletterContent
-    };
     try {
-        const res = await fetch('/api/state', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key: 'workspace', value: state })
-        });
-        if (res.ok) {
-            localStorage.setItem('newsletter_articles', JSON.stringify(state));
-            alert('Pushed to server: ' + articles.length + ' articles, ' + archivedArticles.length + ' archived, ' + laterCoolArticles.length + ' later cool.');
+        await convertLocalUploadUrlsForSharing();
+        const workspace = buildWorkspaceState();
+        const sessions = buildSessionsState(true);
+        const requests = [
+            fetch('/api/state', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key: 'workspace', value: workspace })
+            }),
+            fetch('/api/state', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key: 'sessions', value: sessions })
+            })
+        ];
+        if (lastGeneratedNewsletter && lastGeneratedNewsletter.meta && lastGeneratedNewsletter.meta.name) {
+            requests.push(
+                fetch('/api/newsletters', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: lastGeneratedNewsletter.meta.name, generated: lastGeneratedNewsletter })
+                })
+            );
+        }
+
+        const responses = await Promise.all(requests);
+        const failed = [];
+        for (const res of responses) {
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                failed.push(err.error || res.status);
+            }
+        }
+
+        if (failed.length === 0) {
+            persistWorkspaceLocal(workspace);
+            localStorage.setItem('newsletter_saved_sessions', JSON.stringify(sessions));
+            currentSessionName = currentSessionName || document.getElementById('newsletter-name')?.value.trim() || '';
+            populateSavedDropdown();
+            const generatedNote = lastGeneratedNewsletter ? ', generated newsletter synced' : '';
+            alert('Pushed to server: ' + articles.length + ' articles, ' + archivedArticles.length + ' archived, ' + laterCoolArticles.length + ' later cool, ' + Object.keys(sessions).length + ' saved session(s)' + generatedNote + '.');
         } else {
-            const err = await res.json().catch(() => ({}));
-            alert('Push failed: ' + (err.error || res.status));
+            alert('Push failed: ' + failed.join('; '));
         }
     } catch (e) {
         alert('Push failed: ' + (e.message || 'network error'));
@@ -2097,15 +3445,12 @@ window.refreshStateFromServer = async function () {
         if (wrRes.ok) {
             const { value } = await wrRes.json();
             if (value && value.articles) {
-                articles.length = 0;
-                articles.push(...(value.articles || []));
-                archivedArticles = value.archivedArticles || [];
-                laterCoolArticles = value.laterCoolArticles || [];
-                inspirationalImages = value.inspirationalImages || [];
-                const nc = value.newsletterContent || newsletterContent;
-                newsletterContent = { ...nc, templates: nc.templates || { MED: '', THC: '', CBD: '', INV: '' } };
-                localStorage.setItem('newsletter_articles', JSON.stringify({ articles, archivedArticles, laterCoolArticles, inspirationalImages, newsletterContent }));
+                applyWorkspaceState(value, { mergeLibrary: true });
                 if (typeof renderArticles === 'function') renderArticles();
+                const activeStep = document.querySelector('.step.active');
+                if (activeStep && activeStep.getAttribute('data-step') === '3' && typeof renderImagesView === 'function') {
+                    renderImagesView();
+                }
                 msg = (value.articles || []).length + ' articles in workspace. ';
                 const nameEl = document.getElementById('newsletter-name');
                 if (nameEl && nameEl.value.trim()) {
@@ -2114,7 +3459,7 @@ window.refreshStateFromServer = async function () {
             }
         } else if (wrRes.status === 503) {
             msg = 'Server database not configured. ';
-            if (hintEl) hintEl.classList.remove('hidden');
+            if (hintEl) hintEl.style.display = 'block';
             await window.updateStateHintFromDiagnostic();
         }
         if (sessRes.ok) {
@@ -2127,16 +3472,16 @@ window.refreshStateFromServer = async function () {
                 if (typeof populateSavedDropdown === 'function') populateSavedDropdown();
                 const n = Object.keys(merged).length;
                 msg += n + ' saved session(s) (server + local).';
-                if (hintEl) hintEl.classList.add('hidden');
+                if (hintEl) hintEl.style.display = 'none';
             }
         } else if (sessRes.status === 503) {
             msg = (msg || '') + 'Sessions: server database not configured.';
-            if (hintEl) hintEl.classList.remove('hidden');
+            if (hintEl) hintEl.style.display = 'block';
             await window.updateStateHintFromDiagnostic();
         }
         alert(msg || 'No data from server. Check the yellow hint above for details.');
     } catch (e) {
-        if (hintEl) hintEl.classList.remove('hidden');
+        if (hintEl) hintEl.style.display = 'block';
         if (textEl) textEl.textContent = 'Could not reach server: ' + (e.message || 'network error') + '. Check that the API is deployed (e.g. Vercel runs the Express server).';
         alert('Could not reach server: ' + (e.message || 'network error'));
     }
@@ -2186,7 +3531,7 @@ async function searchMoreArticles() {
 
     btn.disabled = true;
     btn.textContent = 'Searching...';
-    status.classList.add('hidden');
+    status.style.display = 'none';
 
     try {
         const response = await fetch('/api/articles/search', {
@@ -2214,9 +3559,11 @@ async function searchMoreArticles() {
             let msg = `Added ${newArticles.length} new articles.`;
             if (dupeCount > 0) msg += ` (${dupeCount} duplicates skipped)`;
             status.textContent = msg;
-            status.classList.remove('hidden');
+            status.style.display = 'block';
         } else {
-            alert('Search Error: ' + (data.error || 'Unknown error'));
+            const clarification = await getAiClarificationFromError(data);
+            const details = clarification || String(data.details || '').trim();
+            alert('Search Error: ' + (details || data.error || 'Unknown error'));
         }
     } catch (err) {
         console.error(err);
@@ -2247,7 +3594,7 @@ async function modifyExistingArticles() {
 
     btn.disabled = true;
     btn.textContent = 'Modifying...';
-    status.classList.add('hidden');
+    status.style.display = 'none';
 
     try {
         const response = await fetch('/api/articles/modify', {
@@ -2274,9 +3621,11 @@ async function modifyExistingArticles() {
             saveState();
             renderArticles();
             status.textContent = `Modified ${data.articles.length} articles.`;
-            status.classList.remove('hidden');
+            status.style.display = 'block';
         } else {
-            alert('Error: ' + data.error);
+            const clarification = await getAiClarificationFromError(data);
+            const details = clarification || String(data.details || '').trim();
+            alert('Error: ' + (details || data.error || 'Unknown error'));
         }
     } catch (err) {
         console.error(err);
@@ -2297,14 +3646,16 @@ function loadRecentPrompts() {
     if (prompts.length > 0) {
         const label = document.createElement('span');
         label.textContent = 'Recent: ';
-        label.className = 'font-semibold';
+        label.style.fontWeight = '600';
         container.appendChild(label);
 
         prompts.forEach(p => {
             const span = document.createElement('span');
             span.textContent = p.length > 50 ? p.substring(0, 50) + '...' : p;
             span.title = p;
-            span.className = 'cursor-pointer underline mr-2.5';
+            span.style.cursor = 'pointer';
+            span.style.textDecoration = 'underline';
+            span.style.marginRight = '10px';
             span.onclick = () => {
                 document.getElementById('ai-prompt').value = p;
             };
@@ -2331,10 +3682,15 @@ populateSavedDropdown();
 // "Find Articles" Button Logic
 const searchBtn = document.getElementById('btn-search-articles');
 const nextStep2Btn = document.getElementById('btn-next-step-2');
+const nextStep2BottomBtn = document.getElementById('btn-next-step-2-bottom');
 const searchStatus = document.getElementById('search-status');
 
 if (nextStep2Btn) {
     nextStep2Btn.addEventListener('click', () => switchStep(2));
+}
+
+if (nextStep2BottomBtn) {
+    nextStep2BottomBtn.addEventListener('click', () => switchStep(2));
 }
 
 if (searchBtn) {
@@ -2361,7 +3717,7 @@ if (searchBtn) {
 
         searchBtn.disabled = true;
         searchBtn.textContent = "Searching...";
-        if (searchStatus) searchStatus.classList.add('hidden');
+        if (searchStatus) searchStatus.style.display = 'none';
 
         try {
             const response = await fetch('/api/articles/search', {
@@ -2380,15 +3736,17 @@ if (searchBtn) {
                 // Stay on page, show success message and next button
                 if (searchStatus) {
                     searchStatus.textContent = `Found ${data.articles.length} articles!`;
-                    searchStatus.classList.remove('hidden');
+                    searchStatus.style.display = 'inline';
                 }
                 if (nextStep2Btn) {
-                    nextStep2Btn.classList.remove('hidden');
+                    nextStep2Btn.style.display = 'inline-block';
                 }
 
             } else {
                 // Show specific error message from backend (e.g. "Credit balance too low")
-                alert("Search Error:\n" + data.error);
+                const clarification = await getAiClarificationFromError(data);
+                const details = clarification || String(data.details || '').trim();
+                alert("Search Error:\n" + (details || data.error || 'Unknown error'));
                 if (data.details) console.error("Error Details:", data.details);
             }
         } catch (err) {
@@ -2405,59 +3763,32 @@ if (searchBtn) {
 const uploadBtn = document.getElementById('btn-upload-file');
 if (uploadBtn) {
     uploadBtn.addEventListener('click', async () => {
-        const fileInput = document.getElementById('excel-upload');
-        const newsletterName = document.getElementById('newsletter-name').value;
-
-        if (!fileInput.files.length) {
-            alert("Please select an Excel file first.");
-            return;
+        const success = await uploadArticlesWorkbook({
+            inputId: 'excel-upload',
+            buttonId: 'btn-upload-file',
+            buttonLabel: 'Upload & Load',
+            replacePrompt: 'This will replace the current {count} articles in your workspace. Continue?',
+            successMessage: 'Loaded {count} articles for "{name}".',
+            switchToStep2: true
+        });
+        if (success) {
+            updateChosenFileName('excel-upload', 'file-name');
         }
+    });
+}
 
-        console.log("Initiating File Upload...", { newsletterName, file: fileInput.files[0].name });
-
-        uploadBtn.disabled = true;
-        uploadBtn.textContent = "Uploading...";
-
-        const formData = new FormData();
-        formData.append('file', fileInput.files[0]);
-        formData.append('newsletterName', newsletterName);
-
-        try {
-            const response = await fetch('/api/articles/upload', {
-                method: 'POST',
-                body: formData
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                console.log("Upload Results:", data.articles);
-                articles = data.articles || [];
-                document.getElementById('newsletter-name').value = data.newsletterName || 'Week 1';
-                saveState();
-                renderArticles();
-                switchStep(2);
-                // Persist to Supabase as Week 1
-                const sessions = getSavedSessions();
-                const week1Data = {
-                    articles: JSON.parse(JSON.stringify(articles)),
-                    archivedArticles: [],
-                    inspirationalImages: [],
-                    newsletterContent: newsletterContent,
-                    savedAt: new Date().toISOString()
-                };
-                sessions['Week 1'] = week1Data;
-                saveSavedSessions(sessions);
-                alert(`Loaded ${articles.length} articles and saved as "Week 1" in the database.`);
-            } else {
-                alert(data.error || "Upload failed.");
-            }
-        } catch (err) {
-            console.error(err);
-            alert("Upload failed. See console.");
-        } finally {
-            uploadBtn.disabled = false;
-            uploadBtn.textContent = "Upload & Load";
+const articleViewUploadBtn = document.getElementById('btn-article-view-upload');
+if (articleViewUploadBtn) {
+    articleViewUploadBtn.addEventListener('click', async () => {
+        const success = await uploadArticlesWorkbook({
+            inputId: 'article-view-excel-upload',
+            buttonId: 'btn-article-view-upload',
+            buttonLabel: 'Upload XLS Here',
+            replacePrompt: 'This will replace the current {count} articles shown in Article View and clear archived/later-cool lists. Continue?',
+            successMessage: 'Restored {count} articles into "{name}". You can continue from Article View now.'
+        });
+        if (success) {
+            updateChosenFileName('article-view-excel-upload', 'article-view-file-name');
         }
     });
 }
@@ -2515,4 +3846,26 @@ const btnBackStep5 = document.getElementById('btn-back-step-5');
 
 if (btnBackStep5) {
     btnBackStep5.addEventListener('click', () => switchStep(5));
+}
+
+// Saved Newsletter Selector (Step 1)
+const savedSessionsDropdownStep1 = document.getElementById('saved-sessions-dropdown-step1');
+if (savedSessionsDropdownStep1) {
+    savedSessionsDropdownStep1.addEventListener('change', (e) => {
+        const selectedName = e.target.value;
+        if (selectedName) {
+            document.getElementById('newsletter-name').value = selectedName;
+            currentSessionName = selectedName;
+        }
+    });
+}
+
+const newsletterNameInput = document.getElementById('newsletter-name');
+if (newsletterNameInput) {
+    newsletterNameInput.addEventListener('input', () => {
+        currentSessionName = newsletterNameInput.value.trim();
+        if (savedSessionsDropdownStep1) {
+            savedSessionsDropdownStep1.value = currentSessionName;
+        }
+    });
 }
