@@ -53,7 +53,7 @@ function cleanArticle(row, index) {
         image: imageUrl || null,
         imageSearchQuery: '',
         isValid: true,
-        selected: true
+        selected: true,
     };
 }
 
@@ -65,7 +65,7 @@ async function main() {
         : [
             path.join(root, 'Week 1-articles (1).xlsx'),
             path.join(root, 'Week 1-articles.xlsx'),
-            path.join(root, 'week1-articles.xlsx')
+            path.join(root, 'week1-articles.xlsx'),
         ];
 
     let filePath = null;
@@ -117,14 +117,14 @@ async function main() {
             archivedArticles: [],
             inspirationalImages: [],
             newsletterContent: defaultContent,
-            savedAt: new Date().toISOString()
-        }
+            savedAt: new Date().toISOString(),
+        },
     };
     const now = new Date().toISOString();
 
     const { error: e1 } = await supabase.from(TABLE).upsert(
         [{ key: 'workspace', value: workspace, updated_at: now }],
-        { onConflict: 'key' }
+        { onConflict: 'key' },
     );
     if (e1) {
         console.error('Workspace upsert failed:', e1.message);
@@ -132,7 +132,7 @@ async function main() {
     }
     const { error: e2 } = await supabase.from(TABLE).upsert(
         [{ key: 'sessions', value: sessions, updated_at: now }],
-        { onConflict: 'key' }
+        { onConflict: 'key' },
     );
     if (e2) {
         console.error('Sessions upsert failed:', e2.message);

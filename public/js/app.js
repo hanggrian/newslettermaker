@@ -91,7 +91,7 @@ const GREETING_OPTIONS = Array.from(new Set([
     'Thanks and I hope you have a terrific week!',
     'Merry Christmas!',
     'Happy MLK Day!',
-    'Happy Labor Day!'
+    'Happy Labor Day!',
 ]));
 const DEFAULT_GREETING = 'Have a fantastic week and stay safe,';
 const DEFAULT_SUMMARY_RULES = [
@@ -111,7 +111,7 @@ const DEFAULT_SUMMARY_RULES = [
     '13. make it casual',
     '14. Here is the lancet article to summarize into a sentence.',
     '15. Dont include the names of the periodicals or the studies',
-    '16. Keep sentences succinct but give important data if applicable.'
+    '16. Keep sentences succinct but give important data if applicable.',
 ].join('\n');
 function normalizeSummaryRules(value) {
     const text = String(value || '').trim();
@@ -145,7 +145,7 @@ let newsletterContent = {
     summaryRules: DEFAULT_SUMMARY_RULES,
     selectedGreeting: DEFAULT_GREETING,
     subjectPrompt: DEFAULT_SUBJECT_PROMPT,
-    generatedSubjects: { MED: '', THC: '', CBD: '', INV: '' }
+    generatedSubjects: { MED: '', THC: '', CBD: '', INV: '' },
 };
 let currentEditorTab = 'MED';
 let currentConfirmationTab = 'MED';
@@ -186,7 +186,7 @@ function buildWorkspaceState() {
         confirmationInspirationalImage,
         inspirationalLibraryImages,
         newsletterContent,
-        lastGeneratedNewsletter
+        lastGeneratedNewsletter,
     };
 }
 
@@ -236,7 +236,7 @@ function applyWorkspaceState(state, { mergeLibrary = false } = {}) {
         summaryRules: normalizeSummaryRules(nc.summaryRules),
         selectedGreeting: nc.selectedGreeting || DEFAULT_GREETING,
         subjectPrompt: normalizeSubjectPrompt(nc.subjectPrompt),
-        generatedSubjects: nc.generatedSubjects || { MED: '', THC: '', CBD: '', INV: '' }
+        generatedSubjects: nc.generatedSubjects || { MED: '', THC: '', CBD: '', INV: '' },
     };
     lastGeneratedNewsletter = value.lastGeneratedNewsletter || null;
     persistWorkspaceLocal(buildWorkspaceState());
@@ -253,7 +253,7 @@ function buildSessionsState(includeCurrentWorkspace = false) {
                 archivedArticles: JSON.parse(JSON.stringify(archivedArticles)),
                 inspirationalImages: [...inspirationalImages],
                 newsletterContent: JSON.parse(JSON.stringify(newsletterContent)),
-                savedAt: new Date().toISOString()
+                savedAt: new Date().toISOString(),
             };
         }
     }
@@ -301,7 +301,7 @@ async function convertLocalUploadUrlsForSharing() {
         image: mapUrl(article.image),
         originalImageUrl: mapUrl(article.originalImageUrl),
         publishedImageUrl: mapUrl(article.publishedImageUrl),
-        uploadedImageUrl: mapUrl(article.uploadedImageUrl)
+        uploadedImageUrl: mapUrl(article.uploadedImageUrl),
     }));
     inspirationalImages = inspirationalImages.map(mapUrl);
     inspirationalLibraryImages = inspirationalLibraryImages.map((item) => item && item.url ? { ...item, url: mapUrl(item.url) } : item);
@@ -433,7 +433,7 @@ function saveState() {
         fetch('/api/state', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key: 'workspace', value: state })
+            body: JSON.stringify({ key: 'workspace', value: state }),
         }).catch(() => {});
     }, 800);
 }
@@ -447,7 +447,7 @@ window.clearWorkspace = () => {
             MED: { intro: '', outro: '' },
             THC: { intro: '', outro: '' },
             CBD: { intro: '', outro: '' },
-            INV: { intro: '', outro: '' }
+            INV: { intro: '', outro: '' },
         };
         saveState();
         renderArticles();
@@ -471,18 +471,18 @@ function switchStep(stepNumber) {
     if (targetView) targetView.classList.add('active');
 
     // Logic for specific steps
-    if (stepNumber == 2) {
+    if (stepNumber === 2) {
         populateSavedDropdown();
         renderArticles();
-    } else if (stepNumber == 3) {
+    } else if (stepNumber === 3) {
         populateSavedDropdown();
         renderImagesView();
-    } else if (stepNumber == 4) {
+    } else if (stepNumber === 4) {
         renderInspirationalView();
         loadInspirationalLibrary();
-    } else if (stepNumber == 5) {
+    } else if (stepNumber === 5) {
         renderEditorView();
-    } else if (stepNumber == 6) {
+    } else if (stepNumber === 6) {
         renderConfirmationView();
     }
 
@@ -894,7 +894,7 @@ window.searchInspirational = async () => {
         const res = await fetch('/api/images/search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query, page: 1 })
+            body: JSON.stringify({ query, page: 1 }),
         });
         const data = await res.json();
 
@@ -937,7 +937,7 @@ window.uploadInspirationalImage = async () => {
     try {
         const res = await fetch('/api/images/upload-inspirational', {
             method: 'POST',
-            body: formData
+            body: formData,
         });
         const data = await parseJsonResponse(res, 'Upload route did not return JSON. Restart the app server and try again.');
         if (data.success && data.url) {
@@ -982,7 +982,7 @@ window.addInspirationalUrl = async () => {
         const res = await fetch('/api/images/publish-inspirational-url', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url })
+            body: JSON.stringify({ url }),
         });
         const data = await parseJsonResponse(res, 'URL upload route did not return JSON. Restart the app server and try again.');
         if (!res.ok || !data.success || !data.url) {
@@ -1041,7 +1041,7 @@ window.deleteInspirationalLibraryImage = async (url) => {
         const res = await fetch('/api/images/inspirational-library', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url })
+            body: JSON.stringify({ url }),
         });
         const data = await res.json();
         if (!res.ok || !data.success) {
@@ -1180,7 +1180,7 @@ function buildCategoryPrompt(category) {
         'Use only the priority-ranked article links below as the source set for this category summary.',
         'Create a strong 6-7 line newsletter-ready summary for this category.',
         '',
-        articleLines
+        articleLines,
     ].join('\n');
 }
 
@@ -1452,7 +1452,7 @@ window.generateSummary = async (category) => {
                 summaryRules,
                 category,
                 articles: categoryArticles,
-                model: document.getElementById('ai-model') ? document.getElementById('ai-model').value : ''
+                model: document.getElementById('ai-model') ? document.getElementById('ai-model').value : '',
             })
         });
         const data = await res.json();
@@ -1543,7 +1543,7 @@ function renderConfirmationView() {
         THC: getArticlesForCategory('THC').length,
         CBD: getArticlesForCategory('CBD').length,
         INV: getArticlesForCategory('INV').length,
-        COOL_FINDS: articles.filter(a => a.status === 'COOL FINDS').length
+        COOL_FINDS: articles.filter(a => a.status === 'COOL FINDS').length,
     };
     const generatedSubjects = newsletterContent.generatedSubjects || { MED: '', THC: '', CBD: '', INV: '' };
     const subjectPrompt = normalizeSubjectPrompt(newsletterContent.subjectPrompt);
@@ -1630,7 +1630,7 @@ const TEMPLATE_FIXED_CONTENT = {
     unsubscribeHref: 'https://ap.lovethelist.com/index.php/lists/qk5307z6w1e34/unsubscribe/unsubscribe-direct',
     contactEmail: 'news@lovethelist.com',
     footerAddress: 'Purablis Media · 177 Arana Dr. Martinez · CA, 94553 · USA',
-    footerLegal: 'Copyright and image use not authorized. Please contact news@purabici.com for disputes or removal.'
+    footerLegal: 'Copyright and image use not authorized. Please contact news@purabici.com for disputes or removal.',
 };
 
 function isIncludedInConfirmation(article) {
@@ -1879,15 +1879,19 @@ function buildSummaryHtml(category) {
         .map(line => line.trim())
         .filter(Boolean)
         .map(line => escapeHtml(line));
-    return `<div style="text-align: justify;"><span style="font-size:14px;line-height: 150%;color: #000000;">Hi [FNAME],<br />
-                                <br />
-                                ${lines.join('<br />\n\t\t\t\t\t\t\t\t\t')}<br />
-                                <br />
-                                ${selectedGreeting}<br />
-                                Jessica<br />
-                                <br />
-                                If this newsletter&#8217;s not for you, just <a href="${TEMPLATE_FIXED_CONTENT.unsubscribeHref}" style="color:#2baadf;text-decoration:underline;">unsubscribe</a> and you won&#8217;t hear from us again. :) </span><br />
-                                &nbsp;</div>`;
+    return `<div style="text-align: justify;">
+            <span style="font-size: 14px; line-height: 150%; color: #000000;">
+                Hi [FNAME],<br/>
+                <br/>
+                ${lines.join('<br />\n\t\t\t\t\t\t\t\t\t')}<br/>
+                <br/>
+                ${selectedGreeting}<br/>
+                Jessica<br/>
+                <br/>
+                If this newsletter&#8217;s not for you, just <a href="${TEMPLATE_FIXED_CONTENT.unsubscribeHref}" style="color:#2baadf;text-decoration:underline;">unsubscribe</a> and you won&#8217;t hear from us again. :)
+            </span><br/>
+            &nbsp;
+        </div>`;
 }
 
 function replaceArticleSection(html, startMarker, endMarker, articles) {
@@ -1910,7 +1914,7 @@ function renderTemplateHtml(category, templateHtml) {
     const summaryHtml = buildSummaryHtml(category);
 
     if (summaryHtml) {
-        html = html.replace(/<div style="text-align: justify;"><span style="font-size:14px;line-height: 150%;color: #000000;">[\s\S]*?<\/span><br \/>\s*&nbsp;<\/div>/i, summaryHtml);
+        html = html.replace(/<div style="text-align: justify;">[\s\S]*?&nbsp;\s*<\/div>/i, summaryHtml);
     }
 
     html = replaceArticleSection(html, 'Weekly News', 'Interesting Finds', mainArticles);
@@ -2046,7 +2050,7 @@ window.generateAllSubjects = async () => {
             title: article.title || '',
             url: article.url || '',
             date: article.date || '',
-            description: article.description || ''
+            description: article.description || '',
         }));
     });
 
@@ -2065,7 +2069,7 @@ window.generateAllSubjects = async () => {
             body: JSON.stringify({
                 prompt,
                 categories: categoryArticles,
-                model: 'gemini-flash-3-0'
+                model: 'gemini-flash-3-0',
             })
         });
         const data = await parseJsonResponse(res, 'Subject generation route did not return JSON. Restart the app server and try again.');
@@ -2076,7 +2080,7 @@ window.generateAllSubjects = async () => {
             MED: data.subjects.MED || '',
             THC: data.subjects.THC || '',
             CBD: data.subjects.CBD || '',
-            INV: data.subjects.INV || ''
+            INV: data.subjects.INV || '',
         };
         saveState();
         renderConfirmationView();
@@ -2117,7 +2121,7 @@ window.exportSpreadsheet = () => {
             { t: 'n', f: `=COUNTA(E${dataStartRow}:E${lastRow})` },
             { t: 'n', f: `=COUNTA(F${dataStartRow}:F${lastRow})` },
             '', '',
-            medText, thcText, cbdText, invText
+            medText, thcText, cbdText, invText,
         ],
         ['Title', 'URL', 'MED', 'THC', 'CBD', 'INV', 'Image URL', 'Published Image URL', 'MED Newsletter Text', 'THC Newsletter Text', 'CBD Newsletter Text', 'INV Newsletter Text']
     ];
@@ -2138,7 +2142,7 @@ window.exportSpreadsheet = () => {
             inv || undefined,
             imgUrl,
             publishedImgUrl,
-            '', '', '', ''
+            '', '', '', '',
         ]);
     });
 
@@ -2146,7 +2150,7 @@ window.exportSpreadsheet = () => {
     ws['!cols'] = [
         { wch: 40 }, { wch: 50 }, { wch: 6 }, { wch: 6 }, { wch: 6 }, { wch: 6 },
         { wch: 60 }, { wch: 60 },
-        { wch: 50 }, { wch: 50 }, { wch: 50 }, { wch: 50 }
+        { wch: 50 }, { wch: 50 }, { wch: 50 }, { wch: 50 },
     ];
 
     const wb = XLSX.utils.book_new();
@@ -2163,7 +2167,7 @@ window.exportNewsletter = () => {
         },
         inspirationalImages,
         content: newsletterContent,
-        articles: articles.filter(a => ['Y', 'YM', 'COOL FINDS'].includes(a.status))
+        articles: articles.filter(a => ['Y', 'YM', 'COOL FINDS'].includes(a.status)),
     };
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -2231,7 +2235,7 @@ window.generateNewsletters = () => {
             html,
             resultText,
             articles: articles.filter(a => ['Y', 'YM', 'COOL FINDS'].includes(a.status) && a.categories && a.categories.includes(cat)),
-            inspirationalImage: inspirationalImg
+            inspirationalImage: inspirationalImg,
         };
     }
 
@@ -2239,7 +2243,7 @@ window.generateNewsletters = () => {
         meta: { name: newsletterName, generatedAt: new Date().toISOString() },
         newsletters,
         inspirationalImages,
-        articles: articles.filter(a => ['Y', 'YM', 'COOL FINDS'].includes(a.status))
+        articles: articles.filter(a => ['Y', 'YM', 'COOL FINDS'].includes(a.status)),
     };
 
     if (uploadBtn) uploadBtn.disabled = false;
@@ -2275,7 +2279,7 @@ window.uploadNewslettersToServer = async () => {
         const res = await fetch('/api/newsletters', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, generated: lastGeneratedNewsletter })
+            body: JSON.stringify({ name, generated: lastGeneratedNewsletter }),
         });
         const data = await res.json();
         if (res.ok && data.ok) {
@@ -2341,7 +2345,7 @@ window.publishAllImagesToPurablis = async () => {
             const res = await fetch('/api/images/publish-to-purablis', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url })
+                body: JSON.stringify({ url }),
             });
             const data = await res.json();
             if (data.success && data.url) {
@@ -2518,7 +2522,7 @@ window.downloadAllImagesZip = async () => {
             `"${(a.title || '').replace(/"/g, '""')}"`,
             `"${(a.originalImageUrl || '').replace(/"/g, '""')}"`,
             `"${(a.publishedImageUrl || '').replace(/"/g, '""')}"`,
-            `"${filename}"`
+            `"${filename}"`,
         ].join(',');
 
         // Avoid duplicate rows in CSV if same article is processed twice (should not happen with unique array, but safe check)
@@ -2598,7 +2602,7 @@ function assignImportedArticles(importedArticles) {
     articles = (importedArticles || []).map((article, index) => ({
         ...article,
         id: index + 1,
-        addedAt: article.addedAt || importedAt
+        addedAt: article.addedAt || importedAt,
     }));
     archivedArticles = [];
     laterCoolArticles = [];
@@ -2612,7 +2616,7 @@ function upsertImportedSession(name) {
         archivedArticles: JSON.parse(JSON.stringify(archivedArticles)),
         inspirationalImages: [...inspirationalImages],
         newsletterContent: JSON.parse(JSON.stringify(newsletterContent)),
-        savedAt: new Date().toISOString()
+        savedAt: new Date().toISOString(),
     };
     saveSavedSessions(sessions);
     currentSessionName = name;
@@ -2646,7 +2650,7 @@ async function uploadArticlesWorkbook({ inputId, buttonId, buttonLabel, replaceP
     try {
         const response = await fetch('/api/articles/upload', {
             method: 'POST',
-            body: formData
+            body: formData,
         });
 
         const data = await response.json();
@@ -2959,7 +2963,7 @@ window.addArticleFromModal = () => {
         imageSearchQuery: '',
         isValid: true,
         selected: true,
-        addedAt: new Date().toISOString()
+        addedAt: new Date().toISOString(),
     };
     articles.forEach(a => { a.id = (a.id || 0) + 1; });
     articles.unshift(newArticle);
@@ -3002,7 +3006,7 @@ const RANK_SORT_ORDER = {
     'Y': 52,
     'YM': 53,
     'M': 54,
-    'NO': 55
+    'NO': 55,
 };
 function rankToSortValue(rank) {
     if (rank === undefined || rank === null) return 999;
@@ -3157,7 +3161,7 @@ function getSelectedRankCounts() {
         MED: getArticlesForCategory('MED').length,
         THC: getArticlesForCategory('THC').length,
         CBD: getArticlesForCategory('CBD').length,
-        INV: getArticlesForCategory('INV').length
+        INV: getArticlesForCategory('INV').length,
     };
 }
 
@@ -3224,7 +3228,7 @@ function saveSavedSessions(sessions) {
     fetch('/api/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'sessions', value: sessions })
+        body: JSON.stringify({ key: 'sessions', value: sessions }),
     }).catch(() => {});
 }
 
@@ -3240,7 +3244,7 @@ window.saveSession = () => {
         archivedArticles: JSON.parse(JSON.stringify(archivedArticles)),
         inspirationalImages: [...inspirationalImages],
         newsletterContent: JSON.parse(JSON.stringify(newsletterContent)),
-        savedAt: new Date().toISOString()
+        savedAt: new Date().toISOString(),
     };
     saveSavedSessions(sessions);
     currentSessionName = name;
@@ -3271,7 +3275,7 @@ window.loadSession = () => {
         summaryRules: normalizeSummaryRules(nc.summaryRules),
         selectedGreeting: nc.selectedGreeting || DEFAULT_GREETING,
         subjectPrompt: normalizeSubjectPrompt(nc.subjectPrompt),
-        generatedSubjects: nc.generatedSubjects || { MED: '', THC: '', CBD: '', INV: '' }
+        generatedSubjects: nc.generatedSubjects || { MED: '', THC: '', CBD: '', INV: '' },
     };
 
     document.getElementById('newsletter-name').value = name;
@@ -3367,21 +3371,21 @@ window.pushStateToServer = async function () {
             fetch('/api/state', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key: 'workspace', value: workspace })
+                body: JSON.stringify({ key: 'workspace', value: workspace }),
             }),
             fetch('/api/state', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key: 'sessions', value: sessions })
-            })
+                body: JSON.stringify({ key: 'sessions', value: sessions }),
+            }),
         ];
         if (lastGeneratedNewsletter && lastGeneratedNewsletter.meta && lastGeneratedNewsletter.meta.name) {
             requests.push(
                 fetch('/api/newsletters', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: lastGeneratedNewsletter.meta.name, generated: lastGeneratedNewsletter })
-                })
+                    body: JSON.stringify({ name: lastGeneratedNewsletter.meta.name, generated: lastGeneratedNewsletter }),
+                }),
             );
         }
 
@@ -3439,7 +3443,7 @@ window.refreshStateFromServer = async function () {
     try {
         const [wrRes, sessRes] = await Promise.all([
             fetch('/api/state?key=workspace'),
-            fetch('/api/state?key=sessions')
+            fetch('/api/state?key=sessions'),
         ]);
         let msg = '';
         if (wrRes.ok) {
@@ -3537,7 +3541,7 @@ async function searchMoreArticles() {
         const response = await fetch('/api/articles/search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt, newsletterName, model })
+            body: JSON.stringify({ prompt, newsletterName, model }),
         });
 
         const data = await response.json();
@@ -3603,7 +3607,7 @@ async function modifyExistingArticles() {
             body: JSON.stringify({
                 prompt,
                 articles: selectedArticles,
-                model: document.getElementById('ai-model').value
+                model: document.getElementById('ai-model').value,
             })
         });
 
@@ -3723,7 +3727,7 @@ if (searchBtn) {
             const response = await fetch('/api/articles/search', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt, newsletterName, model })
+                body: JSON.stringify({ prompt, newsletterName, model }),
             });
 
             const data = await response.json();
@@ -3769,7 +3773,7 @@ if (uploadBtn) {
             buttonLabel: 'Upload & Load',
             replacePrompt: 'This will replace the current {count} articles in your workspace. Continue?',
             successMessage: 'Loaded {count} articles for "{name}".',
-            switchToStep2: true
+            switchToStep2: true,
         });
         if (success) {
             updateChosenFileName('excel-upload', 'file-name');
@@ -3785,7 +3789,7 @@ if (articleViewUploadBtn) {
             buttonId: 'btn-article-view-upload',
             buttonLabel: 'Upload XLS Here',
             replacePrompt: 'This will replace the current {count} articles shown in Article View and clear archived/later-cool lists. Continue?',
-            successMessage: 'Restored {count} articles into "{name}". You can continue from Article View now.'
+            successMessage: 'Restored {count} articles into "{name}". You can continue from Article View now.',
         });
         if (success) {
             updateChosenFileName('article-view-excel-upload', 'article-view-file-name');

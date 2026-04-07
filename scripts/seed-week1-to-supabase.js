@@ -28,7 +28,7 @@ const ARTICLES = [
     isValid: true,
     status: 'Y',
     selected: true,
-    imageSearchQuery: 'Hemp Delay'
+    imageSearchQuery: 'Hemp Delay',
   },
   {
     id: 2,
@@ -44,7 +44,7 @@ const ARTICLES = [
     isValid: true,
     status: 'Y',
     selected: true,
-    imageSearchQuery: 'ACLU'
+    imageSearchQuery: 'ACLU',
   },
   {
     id: 3,
@@ -60,7 +60,7 @@ const ARTICLES = [
     isValid: true,
     status: 'NO',
     selected: true,
-    imageSearchQuery: 'Congress flat'
+    imageSearchQuery: 'Congress flat',
   },
   {
     id: 4,
@@ -76,7 +76,7 @@ const ARTICLES = [
     isValid: true,
     status: 'Y',
     selected: true,
-    imageSearchQuery: 'question'
+    imageSearchQuery: 'question',
   },
   {
     id: 8,
@@ -92,7 +92,7 @@ const ARTICLES = [
     isValid: true,
     status: 'COOL FINDS',
     selected: true,
-    imageSearchQuery: 'Reefer madness flatness'
+    imageSearchQuery: 'Reefer madness flatness',
   },
   {
     id: 9,
@@ -108,7 +108,7 @@ const ARTICLES = [
     isValid: true,
     status: 'Y',
     selected: true,
-    imageSearchQuery: 'February 2026'
+    imageSearchQuery: 'February 2026',
   }
 ];
 
@@ -157,7 +157,7 @@ async function seedWeek1() {
     articles,
     archivedArticles: [],
     inspirationalImages: [],
-    newsletterContent: defaultContent
+    newsletterContent: defaultContent,
   };
 
   const sessions = {
@@ -166,7 +166,7 @@ async function seedWeek1() {
       archivedArticles: [],
       inspirationalImages: [],
       newsletterContent: defaultContent,
-      savedAt: new Date().toISOString()
+      savedAt: new Date().toISOString(),
     }
   };
 
@@ -175,7 +175,7 @@ async function seedWeek1() {
   try {
     const { error: e1 } = await supabase.from(TABLE).upsert(
       [{ key: 'workspace', value: workspace, updated_at: now }],
-      { onConflict: 'key' }
+      { onConflict: 'key' },
     );
     if (e1) {
       throw new Error('Table may not exist. Run the SQL in supabase/schema.sql in Supabase → SQL Editor. ' + e1.message);
@@ -184,7 +184,7 @@ async function seedWeek1() {
 
     const { error: e2 } = await supabase.from(TABLE).upsert(
       [{ key: 'sessions', value: sessions, updated_at: now }],
-      { onConflict: 'key' }
+      { onConflict: 'key' },
     );
     if (e2) throw new Error('Error upserting sessions: ' + e2.message);
     console.log('Upserted sessions (Week 1).');

@@ -69,14 +69,14 @@ async function main() {
         archivedArticles: workspace.archivedArticles || [],
         inspirationalImages: workspace.inspirationalImages || [],
         newsletterContent: { ...nc, templates: (nc.templates || { MED: '', THC: '', CBD: '', INV: '' }) },
-        savedAt: new Date().toISOString()
+        savedAt: new Date().toISOString(),
     };
 
     const { error: eu } = await supabase
         .from(TABLE)
         .upsert(
             { key: 'sessions', value: sessions, updated_at: new Date().toISOString() },
-            { onConflict: 'key' }
+            { onConflict: 'key' },
         );
 
     if (eu) {

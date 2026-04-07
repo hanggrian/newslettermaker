@@ -67,7 +67,7 @@ async function main() {
     const backup = {
         backedUpAt: new Date().toISOString(),
         workspace,
-        sessions
+        sessions,
     };
 
     const dir = path.join(__dirname, '..', 'backups');
@@ -94,7 +94,7 @@ async function main() {
             .from(TABLE)
             .upsert(
                 { key: 'sessions', value: sessions, updated_at: new Date().toISOString() },
-                { onConflict: 'key' }
+                { onConflict: 'key' },
             );
         if (eu) {
             console.error('Failed to save session "' + sessionName + '" to server:', eu.message);

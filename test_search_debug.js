@@ -7,7 +7,7 @@ async function testSearch() {
             body: JSON.stringify({
                 prompt: 'Find 3 recent articles about marijuana rescheduling. Return real URLs.',
                 model: 'claude-opus-4-6',
-                newsletterName: 'Test Newsletter'
+                newsletterName: 'Test Newsletter',
             })
         });
 
