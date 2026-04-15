@@ -28,28 +28,37 @@ const WORD_EXCLUSIONS = [
     'vs',
     'vs.',
     'with',
-]
+];
 
 export default function validateHeadlines(headlines) {
     if (headlines.some(s => validateHeadline(s) === BAD_FORMAT)) {
-        return [
+        return returnPreview(
             '#d32f2f',
             'Remove space padding or double-spacing.',
             '&cross;',
-        ]
+        );
     }
     if (headlines.some(s => validateHeadline(s) === WARN_FORMAT)) {
-        return [
+        return returnPreview(
             '#f57c00',
             'Headlines should be in title case.',
             '&#9888;',
-        ]
+        );
     }
-    return [
+    return returnPreview(
         '#666',
-        'Uses the email template, then fills in summary, articles and an inspirational image.',
+        'Uses the email template, then fills in summary, articles and an inspirational ' +
+        'image.',
         '&check;',
-    ]
+    );
+}
+
+function returnPreview(color, text, unicode) {
+    return {
+        previewColor: color,
+        previewText: text,
+        previewUnicode: unicode,
+    };
 }
 
 function validateHeadline(headline) {

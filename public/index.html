@@ -57,10 +57,10 @@
           <div class="card-body newsletter-search-card-body">
             <!-- Newsletter Name -->
             <div class="form-group search-panel search-panel-name mb-5">
-              <label class="text-[0.85rem] font-semibold text-[#555] uppercase tracking-[0.5px] block mb-2">Newsletter Name</label>
+              <label class="text-sm font-semibold text-[#555] uppercase tracking-[0.5px] block mb-2">Newsletter Name</label>
               <div class="newsletter-search-inline flex items-center gap-2">
                 <input type="text" id="newsletter-name" placeholder="Type a new newsletter name or choose a saved one" value="Week 1" class="max-w-100">
-                <select id="saved-sessions-dropdown-step1" title="Choose a previously saved newsletter name" class="py-1 px-1.5 border-solid border-2 border-[#ccc] rounded text-[0.85rem] w-auto min-w-55">
+                <select id="saved-sessions-dropdown-step1" title="Choose a previously saved newsletter name" class="py-1 px-1.5 border-solid border-2 border-[#ccc] rounded text-sm w-auto min-w-55">
                   <option value="">Saved newsletters</option>
                 </select>
                 <button type="button" class="btn btn-primary btn-sm" onclick="saveSession()" title="Save current name and articles as a session (no search needed)">Save current</button>
@@ -74,7 +74,7 @@
               <label class="section-label">Find Articles with AI</label>
               <textarea id="ai-prompt" rows="4" placeholder="Enter instructions for AI to generate articles..."></textarea>
 
-              <div id="recent-prompts" class="recent-prompts mt-1.25 mb-2.5 text-[0.85rem] text-(--text-muted)">
+              <div id="recent-prompts" class="recent-prompts mt-1.25 mb-2.5 text-sm text-(--text-muted)">
                 <!-- Recent prompts will be injected here -->
               </div>
 
@@ -125,14 +125,14 @@
 
         <!-- Save / Load Controls -->
         <div class="py-4 px-5 border-b border-[#ddd]">
-          <div id="state-load-hint" class="hidden mb-2.5 py-2 px-3 bg-[#fff3cd] border-solid border-2 border-[#ffc107] rounded-md text-[0.85rem] text-[#856404]">
+          <div id="state-load-hint" class="hidden mb-2.5 py-2 px-3 bg-[#fff3cd] border-solid border-2 border-[#ffc107] rounded-md text-sm text-[#856404]">
             <span id="state-load-hint-text">Loading…</span>
           </div>
           <div class="flex gap-4 items-center flex-wrap">
             <button class="btn btn-primary btn-sm" onclick="saveSession()">Save</button>
             <div class="flex items-center gap-2">
-              <label class="text-[0.85rem] font-semibold text-[#555] whitespace-nowrap">Load Saved:</label>
-              <select id="saved-sessions-dropdown" class="py-1.5 px-2.5 border-solid border-2 border-[#ccc] rounded text-[0.85rem] min-w-50">
+              <label class="text-sm font-semibold text-[#555] whitespace-nowrap">Load Saved:</label>
+              <select id="saved-sessions-dropdown" class="py-1.5 px-2.5 border-solid border-2 border-[#ccc] rounded text-sm min-w-50">
                 <option value="">-- Select --</option>
               </select>
               <button class="btn btn-secondary btn-sm" onclick="loadSession()">Load</button>
@@ -163,14 +163,14 @@
             <textarea id="step2-query" rows="2" placeholder="Search for more articles to add..." class="flex-1 p-2.5 text-[0.95rem]"></textarea>
             <button id="btn-step2-query" class="btn btn-primary" onclick="executeStep2Query()">Find Articles</button>
           </div>
-          <div id="step2-query-status" class="text-[0.85rem] text-[#4caf50] font-medium mt-1.25 hidden"></div>
+          <div id="step2-query-status" class="text-sm text-[#4caf50] font-medium mt-1.25 hidden"></div>
         </div>
 
         <!-- Add article + Batch filter + Sort -->
         <div class="py-4 px-5 mb-2.5 flex items-center gap-3 flex-wrap">
           <button type="button" class="btn btn-primary btn-sm" onclick="openAddArticleModal()">+ Add article</button>
           <label class="text-[0.8rem] text-[#555]">Batch:</label>
-          <select id="batch-filter-select" onchange="setBatchFilter(this.value); renderArticles();" class="py-1 px-2 text-[0.85rem]">
+          <select id="batch-filter-select" onchange="setBatchFilter(this.value); renderArticles();" class="py-1 px-2 text-sm">
             <option value="">All</option>
           </select>
           <select id="article-sort-order" class="form-control w-40 min-w-40 p-2" onchange="sortArticlesByTitle(this.value)" title="Sort articles by title or added time">
@@ -259,8 +259,8 @@
           <div class="flex gap-4 items-center flex-wrap">
             <button class="btn btn-primary btn-sm" onclick="saveSession()">Save</button>
             <div class="flex items-center gap-2">
-              <label class="text-[0.85rem] font-semibold text-[#555] whitespace-nowrap">Load Saved:</label>
-              <select id="saved-sessions-dropdown-step3" class="py-1.5 px-2.5 border-solid border-2 border-[#ccc] rounded text-[0.85rem] min-w-50">
+              <label class="text-sm font-semibold text-[#555] whitespace-nowrap">Load Saved:</label>
+              <select id="saved-sessions-dropdown-step3" class="py-1.5 px-2.5 border-solid border-2 border-[#ccc] rounded text-sm min-w-50">
                 <option value="">-- Select --</option>
               </select>
               <button class="btn btn-secondary btn-sm" onclick="loadSessionFromStep3()">Load</button>
@@ -420,10 +420,10 @@
         </select>
       </div>
       <div class="grid grid-cols-4 gap-1.5">
-        <div><label class="text-[0.7rem] text-[#555]">MED</label><input type="text" id="add-article-med" placeholder="" class="w-full p-1 text-[0.85rem]"></div>
-        <div><label class="text-[0.7rem] text-[#555]">THC</label><input type="text" id="add-article-thc" placeholder="" class="w-full p-1 text-[0.85rem]"></div>
-        <div><label class="text-[0.7rem] text-[#555]">CBD</label><input type="text" id="add-article-cbd" placeholder="" class="w-full p-1 text-[0.85rem]"></div>
-        <div><label class="text-[0.7rem] text-[#555]">INV</label><input type="text" id="add-article-inv" placeholder="" class="w-full p-1 text-[0.85rem]"></div>
+        <div><label class="text-[0.7rem] text-[#555]">MED</label><input type="text" id="add-article-med" placeholder="" class="w-full p-1 text-sm"></div>
+        <div><label class="text-[0.7rem] text-[#555]">THC</label><input type="text" id="add-article-thc" placeholder="" class="w-full p-1 text-sm"></div>
+        <div><label class="text-[0.7rem] text-[#555]">CBD</label><input type="text" id="add-article-cbd" placeholder="" class="w-full p-1 text-sm"></div>
+        <div><label class="text-[0.7rem] text-[#555]">INV</label><input type="text" id="add-article-inv" placeholder="" class="w-full p-1 text-sm"></div>
       </div>
     </div>
     <div class="mt-4.5 flex gap-2 justify-end">
@@ -433,6 +433,7 @@
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script>
   (() => {
@@ -447,7 +448,6 @@
     window.addEventListener('scroll', onScroll, {passive: true});
   })();
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>
