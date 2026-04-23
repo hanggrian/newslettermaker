@@ -12,6 +12,7 @@ const WORD_EXCLUSIONS = [
     'by',
     'en',
     'for',
+    'from',
     'if',
     'in',
     'into',
@@ -31,13 +32,21 @@ const WORD_EXCLUSIONS = [
     'with',
 ];
 
-function collectHeadlineViolations(headlines) {
+function getHeadlineLengthAdmonition(headline) {
+    return headline.length > 89
+        ? {
+            color: '#f57c00',
+            message: '&cross; Too long',
+        } : null;
+}
+
+function getHeadlineFormatAdmonition(headlines) {
     let color;
     let symbol;
     let message;
     const violations = [];
     for (const headline of headlines) {
-        if (validateHeadline(headline) === BAD_FORMAT) {
+        if (checkHeadlineFormat(headline) === BAD_FORMAT) {
             if (color === undefined) {
                 color = '#d32f2f';
                 symbol = '&cross;';
@@ -46,11 +55,13 @@ function collectHeadlineViolations(headlines) {
             violations.push(headline);
             continue;
         }
-        if (!violations.length && validateHeadline(headline) === WARN_FORMAT) {
+        if (checkHeadlineFormat(headline) === WARN_FORMAT) {
             if (color === undefined) {
                 color = '#f57c00';
                 symbol = '&cross;';
                 message = 'Headlines should be in title case:';
+            } else if (color === '#d32f2f') {
+                continue;
             }
             violations.push(headline);
         }
@@ -74,7 +85,7 @@ function collectHeadlineViolations(headlines) {
     };
 }
 
-function validateHeadline(headline) {
+function checkHeadlineFormat(headline) {
     if (headline.startsWith(' ') ||
         headline.endsWith(' ') ||
         headline.includes('  ')) {

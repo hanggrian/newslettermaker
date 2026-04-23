@@ -2097,8 +2097,8 @@ async function renderConfirmationPreviews() {
     if (!container) return;
 
     // const selectedSummary = getSelectedOrGeneratedSummary(currentConfirmationTab);
-    const reports =
-        collectHeadlineViolations(
+    const admonition =
+        getHeadlineFormatAdmonition(
             articles
                 .filter(a =>
                     a.categories.includes(currentConfirmationTab) &&
@@ -2133,9 +2133,9 @@ async function renderConfirmationPreviews() {
             <div>
                 <div>
                     <span class="text-base font-bold">${currentConfirmationTab} Preview</span>
-                    <span class="text-base font-bold text-[${reports.color}]"><b>${reports.symbol}</b></span>
+                    <span class="text-base font-bold text-[${admonition.color}]"><b>${admonition.symbol}</b></span>
                 </div>
-                <span class="text-sm text-[${reports.color}] mt-1">${reports.message}</span>
+                <span class="text-sm text-[${admonition.color}] mt-1">${admonition.message}</span>
             </div>
             <div class="flex gap-2.5 flex-wrap">
                 <button
@@ -2942,6 +2942,7 @@ function renderArticles() {
             .map(realIndex => {
                 const article = articles[realIndex];
                 const index = realIndex;
+
                 // Ensure defaults
                 if (!article.status) article.status = 'Y';
                 if (!article.categories) {
@@ -2977,6 +2978,7 @@ function renderArticles() {
                                     placeholder="">
                             </div>`;
                         }).join('');
+                const admonition = getHeadlineLengthAdmonition(article.title);
 
                 return `<div class="article-row">
                     <div class="col-selected">
@@ -2992,11 +2994,14 @@ function renderArticles() {
                                 class="title-edit font-[inherit] flex-1 min-w-30"
                                 rows="2"
                                 onchange="updateArticleField(${index}, 'title', this.value)">${article.title}</textarea>
-                            <span
-                                class="article-added-at"
-                                title="${article.addedAt ? 'Added ' + article.addedAt : 'No add date'}">
-                                ${article.addedAt ? 'added ' + formatAddedAt(article.addedAt) : '—'}
-                            </span>
+                            <div class="flex flex-col" id="admonition-container-${index}">
+                                <span
+                                    class="article-added-at"
+                                    title="${article.addedAt ? 'Added ' + article.addedAt : 'No add date'}">
+                                    ${article.addedAt ? 'added ' + formatAddedAt(article.addedAt) : '—'}
+                                </span>
+                                ${admonition !== null ? `<span class="admonition-text font-bold text-[0.75rem] text-[${admonition.color}] mt-2">${admonition.message}</span>` : ''}
+                            </div>
                         </div>
                         <p class="my-1.25 text-[0.85rem] text-[#666]">
                             ${article.description ? article.description.substring(0, 120) + '...' : 'No description'}
@@ -3106,6 +3111,19 @@ window.updateArticleField = (index, field, value) => {
         // Re-render to update the link icon
         renderArticles();
     } else if (field === 'title') {
+        const container = document.getElementById(`admonition-container-${index}`);
+        const admonition = getHeadlineLengthAdmonition(value);
+        const oldSpan = container.querySelector('.admonition-text');
+        if (oldSpan) {
+            oldSpan.remove();
+        }
+        if (admonition) {
+            const span = document.createElement('span');
+            span.className = `admonition-text font-bold text-[0.75rem] text-[${admonition.color}] mt-2`;
+            span.innerHTML = admonition.message;
+            container.appendChild(span);
+        }
+
         saveState();
         requestAnimationFrame(highlightLongTitles);
     } else {
